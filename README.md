@@ -1,5 +1,4 @@
-Seminario de PHP, React, y API Rest
-===================================
+# Seminario de PHP, React, y API Rest
 
 ## Configuración inicial
 
@@ -15,12 +14,18 @@ cp .env.dist .env
 docker volume create seminariophp
 ```
 
-donde *seminariophp* es el valor de la variable `DB_VOLUME`
+donde _seminariophp_ es el valor de la variable `DB_VOLUME`
 
 ## Iniciar servicios
 
 ```bash
 docker compose up -d
+```
+
+(En el caso de presentar algun tipo de error de comunicación con la base de datos o el servidor, como el error 2002)
+
+```bash
+docker compose up
 ```
 
 ## Terminar servicios

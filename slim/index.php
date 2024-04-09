@@ -2,7 +2,7 @@
 
 use Slim\Factory\AppFactory;
 
-require_once 'endpoints/localidades.php';
+use endpoints\Localidades;
 
 require __DIR__ . '/vendor/autoload.php'; //Carga las clases a las que hace referencia arriba
 
@@ -26,7 +26,9 @@ $app->add(function ($request, $handler) {
 // '/' hace referencia al localHost.
 // ACÁ VAN LOS ENDPOINTS -- En este caso, que es local, nosotros definimos el endpoint. Si fuera en un server, habria que ver bien la URL.
 // Si yo quisiera podria poner '/pepe' y mientras ingrese en localHost:80/pepe se van a mostrar todos los datos
-listar($app);
+Localidades::crear($app);
 crear($app);
+editar($app);
+eliminar($app);
 
 $app->run();
