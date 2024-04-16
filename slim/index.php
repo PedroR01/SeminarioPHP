@@ -1,8 +1,11 @@
 <?php
 
+// ANOTACIONES -- Autoload en el composer para el NAMESPACE. El NAMESPACE es para poder hacer el enrutamiento con una clase. Faltaria añadir una carpeta src para meter la de endpoints y ahi cambiarla a Endpoints
+
 use Slim\Factory\AppFactory;
 
-use endpoints\Localidades;
+use Endpoints\Localidades;
+use Endpoints\Inquilino;
 
 require __DIR__ . '/vendor/autoload.php'; //Carga las clases a las que hace referencia arriba
 
@@ -23,12 +26,18 @@ $app->add(function ($request, $handler) {
     ;
 });
 
-// '/' hace referencia al localHost.
-// ACÁ VAN LOS ENDPOINTS -- En este caso, que es local, nosotros definimos el endpoint. Si fuera en un server, habria que ver bien la URL.
-// Si yo quisiera podria poner '/pepe' y mientras ingrese en localHost:80/pepe se van a mostrar todos los datos
-Localidades::crear($app);
-crear($app);
-editar($app);
-eliminar($app);
+/* ---- ROUTES ---- */
+
+// -- Localidades -- //
+$app->get('/localidades/listar', Localidades::class . ':listar');
+$app->post('/localidades/crear', Localidades::class . ':crear');
+$app->put('/localidades/{id}/editar', Localidades::class . ':editar');
+$app->delete('/localidades/{id}/eliminar', Localidades::class . ':eliminar');
+
+// -- Inquilinos -- //
+$app->post('/inquilino/crear', Inquilino::class . ':crear');
+
+/* ----        ---- */
+
 
 $app->run();

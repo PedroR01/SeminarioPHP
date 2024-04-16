@@ -39,3 +39,9 @@ docker compose down -v
 ```bash
 docker volume rm seminariophp
 ```
+
+## Actualizar autoload composer.json
+
+```bash
+docker compose run --rm composer dump-autoload
+```
