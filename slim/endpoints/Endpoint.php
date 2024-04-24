@@ -9,16 +9,26 @@ use Psr\Http\Message\ServerRequestInterface as Request;
 abstract class Endpoint
 {
     // Permite una secuencia de al menos 2 caracteres alfabéticos (mayúsculas o minúsculas) o letras acentuadas (como á, é, í, ó, ú, ñ).
-    protected $patronNombreApellido = "/^[A-Za-záéíóúñ]{2,}+$/";
+    protected $patronNombreApellido = "/^[A-Za-záéíóúñ]{2,}$/";
 
     // [a-zA-Z0-9_.-]+: Permite una secuencia de caracteres alfanuméricos, puntos, guiones bajos o guiones antes del símbolo “@”.
     // [a-zA-Z0-9]+: Luego del @, permite una secuencia de caracteres alfanuméricos.
     // \.: Permite el punto que separa el dominio de nivel superior.
     // [a-zA-Z]{2,6}: Permite de 2 a 6 caracteres alfabéticos (por ejemplo, “com”, “org”, “es”)
-    protected $patronEmail = "/^[a-zA-Z0-9_.-]+@[a-zA-Z0-9]+\.[a-zA-Z]{2,6}$/";
+    protected $patronEmail = "/^[a-zA-Z0-9_.-]+@[a-zA-Z0-9]+.[a-zA-Z]{2,6}$/";
 
-    // Permite una secuencia de caracteres númericos según el criterio del DNI argentino?
-    protected $patronDocumento = "/^[0-9]{2}+\.[0-9]{3}\.[0-9]{3}$/";
+    // Permite una secuencia de caracteres númericos según el criterio del DNI argentino
+    protected $patronDocumento = "/^[0-9]{1,2}+.[0-9]{3,}+.[0-9]{3,}$/";
+
+    // Calle "numeroDeCalle" "numeroDeDomicilio".
+    protected $patronDomicilio = '/^(Calle)\s\d{1,3}\s\d{3,4}+$/';
+
+    protected $data = [
+        'Status' => '',
+        'Mensaje' => '',
+        'Codigo' => '',
+        'Data' => null,
+    ];
 
     protected abstract function crear(Request $request, Response $response);
     protected abstract function editar(Request $request, Response $response, $args);

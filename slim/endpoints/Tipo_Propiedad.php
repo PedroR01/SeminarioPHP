@@ -11,89 +11,88 @@ class Tipo_Propiedad extends Endpoint
 {
     public function crear(Request $request, Response $response)
     {
-        $msg = '';
         try {
 
             $connection = $this->getConnection();
 
-            $data = $request->getParsedBody();
-            $nuevoTipo = $data['nuevoTipo'];
+            $nuevoTipo = $request->getParsedBody();
 
-            $tablaTipos = $connection->prepare('SELECT * FROM tipo_propiedades WHERE nombre = :nuevoNombre');
-            $tablaTipos->execute([':nuevoNombre' => $nuevoTipo]);
+            $tablaTipos = $connection->prepare('SELECT * FROM tipo_propiedades WHERE nombre = :nuevoTipo');
+            $tablaTipos->execute([':nuevoTipo' => $nuevoTipo['nuevoTipo']]);
             $existe = $tablaTipos->fetchColumn();
 
             if (!$existe) {
-                $tablaTipos = $connection->prepare('INSERT INTO tipo_propiedades (nombre) VALUES (:nuevoNombre)');
-                $tablaTipos->execute([':nuevoNombre' => $nuevoTipo]);
-                $msg = 'El tipo de propiedad ha sido agregada correctamente';
+                $tablaTipos = $connection->prepare('INSERT INTO tipo_propiedades (nombre) VALUES (:nuevoTipo)');
+                $tablaTipos->execute([':nuevoTipo' => $nuevoTipo['nuevoTipo']]);
+                $this->data['Status'] = 'Success';
+                $this->data['Mensaje'] = 'Tipo de propiedad agregado correctamente';
+                $this->data['Data'] = $nuevoTipo;
+                $this->data['Codigo'] = '200';
             } else {
-                $msg = 'Error: El tipo de propiedad ingresado ya existe en la base de datos.';
+                $this->data['Status'] = 'Fail';
+                $this->data['Mensaje'] = 'Error: El tipo de propiedad ingresado ya existe en la base de datos.';
+                $this->data['Data'] = $nuevoTipo;
+                $this->data['Codigo'] = '?';
             }
 
         } catch (Exception $e) {
-            $msg = [
-                'Status ' => 'ERROR',
-                'Mensaje ' => $e->getMessage(),
-                'Codigo ' => $e->getCode(),
-                'HTTP Code ' => http_response_code(),
-            ];
-
+            $this->data['Status'] = 'Throw Exception';
+            $this->data['Mensaje'] = $e->getMessage();
+            $this->data['Codigo'] = $e->getCode();
         }
 
-        $response->getBody()->write(json_encode($msg));
+        $response->getBody()->write(json_encode($this->data));
         return $response;
 
     }
     public function editar(Request $request, Response $response, $args)
     {
-        $direccion = '/tipos_propiedad';
-
         try {
             $id = $args['id'];
             $connection = $this->getConnection();
 
-            $tipoPropiedad = $connection->prepare('SELECT nombre FROM tipo_propiedades WHERE id = :num');
-            $tipoPropiedad->execute([':num' => $id]);
+            $tipoPropiedad = $connection->prepare('SELECT nombre FROM tipo_propiedades WHERE id = :idURL');
+            $tipoPropiedad->execute([':idURL' => $id]);
             $existeID = $tipoPropiedad->fetchColumn();
 
             if ($existeID) {
-                $data = $request->getParsedBody();
-                $cambioNombre = $data['cambioNombre'];
+                $cambioNombre = $request->getParsedBody();
 
-                $tipoPropiedad = $connection->prepare('SELECT nombre FROM tipo_propiedades WHERE nombre = :nuevoNombre');
+                $tipoPropiedad = $connection->prepare('SELECT nombre FROM tipo_propiedades WHERE nombre = :nuevoNombre AND id <> :idURL');
                 $tipoPropiedad->execute([':nuevoNombre' => $cambioNombre]);
                 $existeNombre = $tipoPropiedad->fetchColumn();
 
                 if (!$existeNombre) {
-                    $tipoPropiedad = $connection->prepare('UPDATE tipo_propiedades SET id = :num, nombre = :nuevoNombre WHERE id = :num');
-                    $tipoPropiedad->execute([':num' => $id, ':nuevoNombre' => $cambioNombre]);
-                    $msg = 'Cambio de nombre del tipo de propiedad realizado.';
-                } else
-                    $msg = 'Error: El nombre ya existe.';
-            } else
-                $msg = [
-                    'Error ' => 'El tipo de propiedad correspondiente al ID ingresado no existe.',
-                    'ID buscado ' => $id,
-                ];
-
+                    $tipoPropiedad = $connection->prepare('UPDATE tipo_propiedades SET id = :idURL, nombre = :nuevoNombre WHERE id = :idURL');
+                    $tipoPropiedad->execute([':idURL' => $id, ':nuevoNombre' => $cambioNombre]);
+                    $this->data['Status'] = 'Success';
+                    $this->data['Mensaje'] = 'Cambios en el tipo de propiedad realizados correctamente';
+                    $this->data['Data'] = $cambioNombre['nuevoNombre'];
+                    $this->data['Codigo'] = '200';
+                } else {
+                    $this->data['Status'] = 'Fail';
+                    $this->data['Mensaje'] = 'Ya existe otro tipo de propiedad con el mismo nombre.';
+                    $this->data['Data'] = $cambioNombre['nuevoNombre'];
+                    $this->data['Codigo'] = '?';
+                }
+            } else {
+                $this->data['Status'] = 'Fail';
+                $this->data['Mensaje'] = 'Error: El ID ingresado no se encuentra en la base de datos.';
+                $this->data['Data'] = $id;
+                $this->data['Codigo'] = '404';
+            }
         } catch (Exception $e) {
-            $msg = [
-                'Status ' => 'ERROR',
-                'Mensaje ' => $e->getMessage(),
-                'Codigo ' => $e->getCode(),
-                'HTTP Code ' => http_response_code(),
-            ];
+            $this->data['Status'] = 'Throw Exception';
+            $this->data['Mensaje'] = $e->getMessage();
+            $this->data['Codigo'] = $e->getCode();
         }
 
-        $response->getBody()->write(json_encode($msg));
+        $response->getBody()->write(json_encode($this->data));
         return $response;
     }
 
     public function eliminar(Request $request, Response $response, $args)
     {
-        $direccion = '/tipos_propiedad';
-
         try {
             $id = $args['id'];
             $connection = $this->getConnection();
@@ -106,22 +105,22 @@ class Tipo_Propiedad extends Endpoint
             if ($existeID) {
                 $tipoPropiedad = $connection->prepare('DELETE FROM tipo_propiedades WHERE id = :num');
                 $tipoPropiedad->execute([':num' => $id]);
-                $msg = 'El tipo de propiedad buscado ha sido eliminado correctamente.';
-            } else
-                $msg = [
-                    'Error ' => 'El tipo de propiedad correspondiente al ID ingresado no existe.',
-                    'ID buscado ' => $id,
-                ];
-
+                $this->data['Status'] = 'Success';
+                $this->data['Mensaje'] = 'Tipo de propiedad eliminado correctamente de la base de datos.';
+                $this->data['Data'] = $id;
+                $this->data['Codigo'] = '200';
+            } else {
+                $this->data['Status'] = 'Fail';
+                $this->data['Mensaje'] = 'Error: El ID ingresado no se encuentra en la base de datos.';
+                $this->data['Data'] = $id;
+                $this->data['Codigo'] = '404';
+            }
         } catch (Exception $e) {
-            $msg = [
-                'Status ' => 'ERROR',
-                'Mensaje ' => $e->getMessage(),
-                'Codigo ' => $e->getCode(),
-                'HTTP Code ' => http_response_code(),
-            ];
+            $this->data['Status'] = 'Throw Exception';
+            $this->data['Mensaje'] = $e->getMessage();
+            $this->data['Codigo'] = $e->getCode();
         }
-        $response->getBody()->write(json_encode($msg));
+        $response->getBody()->write(json_encode($this->data));
         return $response;
     }
 
@@ -131,24 +130,19 @@ class Tipo_Propiedad extends Endpoint
 
             $connection = $this->getConnection();
             $query = $connection->query('SELECT * FROM tipo_propiedades');
-            $tipos = $query->fetchAll(PDO::FETCH_ASSOC);
+            $datos = $query->fetchAll(PDO::FETCH_ASSOC);
 
-            $payload = json_encode([
-                'status' => 'success',
-                'code' => 200,
-                'data' => $tipos
-            ]);
-
-            $response->getBody()->write($payload);
-            return $response;
+            $this->data['Status'] = 'Success';
+            $this->data['Mensaje'] = 'Tipos de propiedades recibidos correctamente.';
+            $this->data['Data'] = $datos;
+            $this->data['Codigo'] = '200';
 
         } catch (Exception $e) {
-            $payload = json_encode([
-                'status' => 'error',
-                'code' => $e->getCode()
-            ]);
-            $response->getBody()->write($payload);
-            return $response;
+            $this->data['Status'] = 'Throw Exception';
+            $this->data['Mensaje'] = $e->getMessage();
+            $this->data['Codigo'] = $e->getCode();
         }
+        $response->getBody()->write(json_encode($this->data));
+        return $response;
     }
 }

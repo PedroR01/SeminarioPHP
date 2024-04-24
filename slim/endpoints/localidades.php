@@ -21,8 +21,7 @@ class Localidades extends Endpoint
 
             $connection = $this->getConnection();
 
-            $data = $request->getParsedBody();
-            $nuevaLocalidad = $data['nuevaLocalidad'];
+            $nuevaLocalidad = $request->getParsedBody();
 
             $tablaLocalidades = $connection->prepare('SELECT * FROM localidades WHERE nombre = :nuevoNombre');
             $tablaLocalidades->execute([':nuevoNombre' => $nuevaLocalidad]);
@@ -37,27 +36,19 @@ class Localidades extends Endpoint
             }
 
         } catch (Exception $e) {
-            $msg = [
-                'Status ' => 'ERROR',
-                'Mensaje ' => $e->getMessage(),
-                'Codigo ' => $e->getCode(),
-                'HTTP Code ' => http_response_code(),
-            ];
-
+            $this->data['Status'] = 'Throw Exception';
+            $this->data['Mensaje'] = $e->getMessage();
+            $this->data['Codigo'] = $e->getCode();
         }
 
-        $response->getBody()->write(json_encode($msg));
+        $response->getBody()->write(json_encode($this->data));
         return $response;
     }
 
     public function editar(Request $request, Response $response, $args)
     {
-        $direccion = '/localidades';
-
         try {
-            $url = $_SERVER['REQUEST_URI'];
-            $parts = explode('/', $url);
-            $id = $parts[count($parts) - 2];
+            $id = $args['id'];
             $connection = $this->getConnection();
 
             $localidad = $connection->prepare('SELECT nombre FROM localidades WHERE id = :num');
@@ -65,10 +56,9 @@ class Localidades extends Endpoint
             $existeID = $localidad->fetchColumn();
 
             if ($existeID) {
-                $data = $request->getParsedBody();
-                $cambioNombre = $data['cambioNombre'];
+                $cambioNombre = $request->getParsedBody();
 
-                $localidad = $connection->prepare('SELECT nombre FROM localidades WHERE nombre = :nuevoNombre and id <> :num');
+                $localidad = $connection->prepare('SELECT nombre FROM localidades WHERE nombre = :nuevoNombre and id <> :num'); // Verifica si el nuevo nombre se encuentra usado ya en otro ID existente.
                 $localidad->execute([':nuevoNombre' => $cambioNombre]);
                 $existeNombre = $localidad->fetchColumn();
 
@@ -85,26 +75,19 @@ class Localidades extends Endpoint
                 ];
 
         } catch (Exception $e) {
-            $msg = [
-                'Status ' => 'ERROR',
-                'Mensaje ' => $e->getMessage(),
-                'Codigo ' => $e->getCode(),
-                'HTTP Code ' => http_response_code(),
-            ];
+            $this->data['Status'] = 'Throw Exception';
+            $this->data['Mensaje'] = $e->getMessage();
+            $this->data['Codigo'] = $e->getCode();
         }
 
-        $response->getBody()->write(json_encode($msg));
+        $response->getBody()->write(json_encode($this->data));
         return $response;
     }
 
     public function eliminar(Request $request, Response $response, $args)
     {
-        $direccion = '/localidades';
-
         try {
-            $url = $_SERVER['REQUEST_URI'];
-            $parts = explode('/', $url);
-            $id = $parts[count($parts) - 2];
+            $id = $args['id'];
             $connection = $this->getConnection();
 
 
@@ -123,43 +106,33 @@ class Localidades extends Endpoint
                 ];
 
         } catch (Exception $e) {
-            $msg = [
-                'Status ' => 'ERROR',
-                'Mensaje ' => $e->getMessage(),
-                'Codigo ' => $e->getCode(),
-                'HTTP Code ' => http_response_code(),
-            ];
+            $this->data['Status'] = 'Throw Exception';
+            $this->data['Mensaje'] = $e->getMessage();
+            $this->data['Codigo'] = $e->getCode();
         }
-        $response->getBody()->write(json_encode($msg));
+        $response->getBody()->write(json_encode($this->data));
         return $response;
     }
 
     public function listar(Request $request, Response $response, array $args)
     {
-
         try {
-
             $connection = $this->getConnection();
             $query = $connection->query('SELECT * FROM localidades');
-            $tipos = $query->fetchAll(PDO::FETCH_ASSOC);
+            $datos = $query->fetchAll(PDO::FETCH_ASSOC);
 
-            $payload = json_encode([
-                'status' => 'success',
-                'code' => 200,
-                'data' => $tipos
-            ]);
-
-            $response->getBody()->write($payload);
-            return $response;
+            $this->data['Status'] = 'Success';
+            $this->data['Mensaje'] = 'Localidades recibidas correctamente.';
+            $this->data['Data'] = $datos;
+            $this->data['Codigo'] = '200';
 
         } catch (Exception $e) {
-            $payload = json_encode([
-                'status' => 'error',
-                'code' => $e->getCode()
-            ]);
-            $response->getBody()->write($payload);
-            return $response;
+            $this->data['Status'] = 'Throw Exception';
+            $this->data['Mensaje'] = $e->getMessage();
+            $this->data['Codigo'] = $e->getCode();
         }
+        $response->getBody()->write(json_encode($this->data));
+        return $response;
     }
 
 }
