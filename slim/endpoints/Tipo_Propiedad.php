@@ -14,14 +14,13 @@ class Tipo_Propiedad extends Endpoint
         try {
 
             $connection = $this->getConnection();
-
             $nuevoTipo = $request->getParsedBody();
 
             $tablaTipos = $connection->prepare('SELECT * FROM tipo_propiedades WHERE nombre = :nuevoTipo');
             $tablaTipos->execute([':nuevoTipo' => $nuevoTipo['nuevoTipo']]);
             $existe = $tablaTipos->fetchColumn();
 
-            if (!$existe) {
+            if (!$existe && isset($nuevaLocalidad)) {
                 $tablaTipos = $connection->prepare('INSERT INTO tipo_propiedades (nombre) VALUES (:nuevoTipo)');
                 $tablaTipos->execute([':nuevoTipo' => $nuevoTipo['nuevoTipo']]);
                 $this->data['Status'] = 'Success';
@@ -30,9 +29,12 @@ class Tipo_Propiedad extends Endpoint
                 $this->data['Codigo'] = '200';
             } else {
                 $this->data['Status'] = 'Fail';
-                $this->data['Mensaje'] = 'Error: El tipo de propiedad ingresado ya existe en la base de datos.';
                 $this->data['Data'] = $nuevoTipo;
-                $this->data['Codigo'] = '?';
+                $this->data['Codigo'] = '400';
+                if ($existe)
+                    $this->data['Mensaje'] = 'El tipo de localidad ingresada ya se encuentra en la base da datos.';
+                else
+                    $this->data['Mensaje'] = 'No se ha ingresado ningún nombre para el tipo de propiedad';
             }
 
         } catch (Exception $e) {
@@ -55,32 +57,48 @@ class Tipo_Propiedad extends Endpoint
             $tipoPropiedad->execute([':idURL' => $id]);
             $existeID = $tipoPropiedad->fetchColumn();
 
-            if ($existeID) {
-                $cambioNombre = $request->getParsedBody();
+            // No se puede editar un tipo de propiedad si ya esta asociada a la tabla de propiedades
+            $propiedad = $connection->prepare('SELECT * FROM propiedades WHERE tipo_propiedad_id = :num');
+            $propiedad->execute([':num' => $id]);
+            $existePropiedad = $propiedad->fetch(PDO::FETCH_ASSOC);
 
-                $tipoPropiedad = $connection->prepare('SELECT nombre FROM tipo_propiedades WHERE nombre = :nuevoNombre AND id <> :idURL');
-                $tipoPropiedad->execute([':nuevoNombre' => $cambioNombre]);
-                $existeNombre = $tipoPropiedad->fetchColumn();
+            if (!$existePropiedad) {
+                if ($existeID) {
+                    $cambioNombre = $request->getParsedBody();
 
-                if (!$existeNombre) {
-                    $tipoPropiedad = $connection->prepare('UPDATE tipo_propiedades SET id = :idURL, nombre = :nuevoNombre WHERE id = :idURL');
-                    $tipoPropiedad->execute([':idURL' => $id, ':nuevoNombre' => $cambioNombre]);
-                    $this->data['Status'] = 'Success';
-                    $this->data['Mensaje'] = 'Cambios en el tipo de propiedad realizados correctamente';
-                    $this->data['Data'] = $cambioNombre['nuevoNombre'];
-                    $this->data['Codigo'] = '200';
+                    $tipoPropiedad = $connection->prepare('SELECT nombre FROM tipo_propiedades WHERE nombre = :nuevoNombre AND id <> :idURL');
+                    $tipoPropiedad->execute([':nuevoNombre' => $cambioNombre['nombre']]);
+                    $existeNombre = $tipoPropiedad->fetchColumn();
+
+                    if (!$existeNombre && isset($cambioNombre)) {
+                        $tipoPropiedad = $connection->prepare('UPDATE tipo_propiedades SET id = :idURL, nombre = :nuevoNombre WHERE id = :idURL');
+                        $tipoPropiedad->execute([':idURL' => $id, ':nuevoNombre' => $cambioNombre['nombre']]);
+                        $this->data['Status'] = 'Success';
+                        $this->data['Mensaje'] = 'Cambios en el tipo de propiedad realizados correctamente';
+                        $this->data['Data'] = $cambioNombre['nombre'];
+                        $this->data['Codigo'] = '200';
+                    } else {
+                        $this->data['Status'] = 'Fail';
+                        $this->data['Data'] = $cambioNombre['nombre'];
+                        $this->data['Codigo'] = '400';
+                        if ($existeNombre)
+                            $this->data['Mensaje'] = 'Ya existe otro tipo de propiedad con el mismo nombre.';
+                        else
+                            $this->data['Mensaje'] = 'No se ha ingresado ningún nombre de tipo de propiedad.';
+                    }
                 } else {
                     $this->data['Status'] = 'Fail';
-                    $this->data['Mensaje'] = 'Ya existe otro tipo de propiedad con el mismo nombre.';
-                    $this->data['Data'] = $cambioNombre['nuevoNombre'];
-                    $this->data['Codigo'] = '?';
+                    $this->data['Mensaje'] = 'El ID ingresado no se encuentra en la base de datos.';
+                    $this->data['Data'] = $id;
+                    $this->data['Codigo'] = '404';
                 }
             } else {
                 $this->data['Status'] = 'Fail';
-                $this->data['Mensaje'] = 'Error: El ID ingresado no se encuentra en la base de datos.';
-                $this->data['Data'] = $id;
-                $this->data['Codigo'] = '404';
+                $this->data['Mensaje'] = 'El tipo de propiedad no se puede editar porque ya se encuentra asociada a una propiedad.';
+                $this->data['Data'] = $existePropiedad;
+                $this->data['Codigo'] = '400';
             }
+
         } catch (Exception $e) {
             $this->data['Status'] = 'Throw Exception';
             $this->data['Mensaje'] = $e->getMessage();
@@ -97,24 +115,36 @@ class Tipo_Propiedad extends Endpoint
             $id = $args['id'];
             $connection = $this->getConnection();
 
+            // No se puede eliminar un tipo de propiedad si ya esta asociada a la tabla de propiedades
+            $propiedad = $connection->prepare('SELECT * FROM propiedades WHERE tipo_propiedad_id = :num');
+            $propiedad->execute([':num' => $id]);
+            $existePropiedad = $propiedad->fetch(PDO::FETCH_ASSOC);
 
-            $tipoPropiedad = $connection->prepare('SELECT * FROM tipo_propiedades WHERE id = :num');
-            $tipoPropiedad->execute([':num' => $id]);
-            $existeID = $tipoPropiedad->fetchColumn();
-
-            if ($existeID) {
-                $tipoPropiedad = $connection->prepare('DELETE FROM tipo_propiedades WHERE id = :num');
+            if ($existePropiedad) {
+                $tipoPropiedad = $connection->prepare('SELECT * FROM tipo_propiedades WHERE id = :num');
                 $tipoPropiedad->execute([':num' => $id]);
-                $this->data['Status'] = 'Success';
-                $this->data['Mensaje'] = 'Tipo de propiedad eliminado correctamente de la base de datos.';
-                $this->data['Data'] = $id;
-                $this->data['Codigo'] = '200';
+                $existeID = $tipoPropiedad->fetch(PDO::FETCH_ASSOC);
+
+                if ($existeID) {
+                    $this->data['Data'] = $existeID;
+                    $tipoPropiedad = $connection->prepare('DELETE FROM tipo_propiedades WHERE id = :num');
+                    $tipoPropiedad->execute([':num' => $id]);
+                    $this->data['Status'] = 'Success';
+                    $this->data['Mensaje'] = 'Tipo de propiedad eliminado correctamente de la base de datos.';
+                    $this->data['Codigo'] = '200';
+                } else {
+                    $this->data['Status'] = 'Fail';
+                    $this->data['Mensaje'] = 'El ID ingresado no se encuentra en la base de datos.';
+                    $this->data['Data'] = $id;
+                    $this->data['Codigo'] = '404';
+                }
             } else {
                 $this->data['Status'] = 'Fail';
-                $this->data['Mensaje'] = 'Error: El ID ingresado no se encuentra en la base de datos.';
-                $this->data['Data'] = $id;
-                $this->data['Codigo'] = '404';
+                $this->data['Mensaje'] = 'El tipo de propiedad no se puede eliminar porque ya se encuentra asociada a una propiedad.';
+                $this->data['Data'] = $existePropiedad;
+                $this->data['Codigo'] = '400';
             }
+
         } catch (Exception $e) {
             $this->data['Status'] = 'Throw Exception';
             $this->data['Mensaje'] = $e->getMessage();

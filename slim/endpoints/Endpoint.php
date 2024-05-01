@@ -57,18 +57,8 @@ abstract class Endpoint
         return false;
     }
 
-    protected function redireccion($errorMsg)
+    protected function validarCantidades($body, $campo, $min)
     {
-        $redirectUrl = '/';
-        //redireccion o mostrar una pag rel a cada error
-        if (http_response_code() === 500) {
-            header("Location: $redirectUrl");
-        }
-        if (http_response_code() === 404) {
-            header("Location: $redirectUrl");
-        }
-        $response = json_encode($errorMsg);
-        echo $response;
-        exit;
+        return (is_int($body["$campo"]) && $body["$campo"] > $min);
     }
 }

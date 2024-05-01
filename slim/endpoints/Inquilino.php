@@ -8,7 +8,7 @@ use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 
 class Inquilino extends Endpoint
-{
+{ // tratar de evitar que retorne vacio
     private $eFormato = [
         'apellido' => "",
         'nombre' => "",
@@ -17,21 +17,18 @@ class Inquilino extends Endpoint
         'activo' => ""
     ];
 
-    public function crear(Request $request, Response $response) // Se puede repetir otra persona con los mismos datos pero dif documento... DUDA
+    public function crear(Request $request, Response $response)
     {
-
-
         try {
 
             $connection = $this->getConnection();
-
             $nuevoInquilino = $request->getParsedBody();
 
-            $vApellido = $this->validador($this->patronNombreApellido, $nuevoInquilino['apellido']);
-            $vNombre = $this->validador($this->patronNombreApellido, $nuevoInquilino['nombre']);
-            $vEmail = $this->validador($this->patronEmail, $nuevoInquilino['email']);
-            $vDocumento = $this->validador($this->patronDocumento, $nuevoInquilino['documento']);
-            $vActivo = ($nuevoInquilino['activo'] != null);
+            $vApellido = isset($nuevoInquilino['apellido']) && $this->validador($this->patronNombreApellido, $nuevoInquilino['apellido']);
+            $vNombre = isset($nuevoInquilino['nombre']) && $this->validador($this->patronNombreApellido, $nuevoInquilino['nombre']);
+            $vEmail = isset($nuevoInquilino['email']) && $this->validador($this->patronEmail, $nuevoInquilino['email']);
+            $vDocumento = isset($nuevoInquilino['documento']) && $this->validador($this->patronDocumento, $nuevoInquilino['documento']);
+            $vActivo = isset($nuevoInquilino['activo']) && ($nuevoInquilino['activo'] == true && $nuevoInquilino['activo'] == false);
 
             if ($vApellido && $vNombre && $vEmail && $vDocumento && $vActivo) {
                 $tablaInquilinos = $connection->prepare('SELECT * FROM inquilinos WHERE documento = :documento');
@@ -50,7 +47,7 @@ class Inquilino extends Endpoint
                     $this->data['Status'] = 'Fail';
                     $this->data['Mensaje'] = 'Error: El inquilino ingresado ya existe en la base de datos.';
                     $this->data['Data'] = $nuevoInquilino;
-                    $this->data['Codigo'] = '?';
+                    $this->data['Codigo'] = '400';
                 }
             } else {
                 if (!$vApellido)
@@ -63,8 +60,6 @@ class Inquilino extends Endpoint
                     $eFormato['email'] = 'El formato del email enviado es incorrecto.';
                 if (!$vActivo)
                     $eFormato['activo'] = 'El formato del estado del inquilino enviado es incorrecto. Solo admite valores true o false.';
-
-                //var_dump($nuevoInquilino); // Imprime formateado los campos. Sirve para debugg principalmente
 
                 $this->data['Status'] = 'Fail';
                 $this->data['Mensaje'] = $eFormato;
@@ -82,77 +77,92 @@ class Inquilino extends Endpoint
         return $response;
 
     }
-    public function editar(Request $request, Response $response, $args) // No me deja ponerle de valor false a activo... DUDA
+    // Corregir la validacion
+    public function editar(Request $request, Response $response, $args)
     {
         try {
             $id = $args['id'];
             $connection = $this->getConnection();
 
-            $inquilinos = $connection->prepare('SELECT apellido, nombre, documento, email, activo FROM inquilinos WHERE id = :idURL');
-            $inquilinos->execute([':idURL' => $id]);
-            $existeID = $inquilinos->fetchColumn();
+            // No se puede editar el inquilino si ya hay una reserva a su nombre efectuandose
+            $reserva = $connection->prepare('SELECT * FROM reservas WHERE inquilino_id = :idURL');
+            $reserva->execute([':idURL' => $id]);
+            $existeReserva = $reserva->fetch(PDO::FETCH_ASSOC);
+            $fechaActual = date('Y-m-d');
 
-            if ($existeID) {
-                $cambios = $request->getParsedBody();
+            if ($existeReserva['fecha_desde'] > $fechaActual) {
+                $inquilinos = $connection->prepare('SELECT apellido, nombre, documento, email, activo FROM inquilinos WHERE id = :idURL');
+                $inquilinos->execute([':idURL' => $id]);
+                $existeID = $inquilinos->fetchColumn();
 
-                $vApellido = $this->validador($this->patronNombreApellido, $cambios['apellido']);
-                $vNombre = $this->validador($this->patronNombreApellido, $cambios['nombre']);
-                $vEmail = $this->validador($this->patronEmail, $cambios['email']);
-                $vDocumento = $this->validador($this->patronDocumento, $cambios['documento']);
-                $vActivo = ($cambios['activo'] != null);
+                if ($existeID) {
+                    $cambios = $request->getParsedBody();
 
-                if ($vApellido && $vNombre && $vEmail && $vDocumento && $vActivo) {
-                    $inquilinos = $connection->prepare('SELECT apellido, nombre, documento, email, activo FROM inquilinos WHERE documento = :nuevoDocumento AND id <> :idURL');
-                    $inquilinos->execute([
-                        ':nuevoDocumento' => $cambios['documento'],
-                        ':idURL' => $id,
-                    ]);
-                    $existeInquilino = $inquilinos->fetch();
+                    $vApellido = isset($cambios['apellido']) && $this->validador($this->patronNombreApellido, $cambios['apellido']);
+                    $vNombre = isset($cambios['nombre']) && $this->validador($this->patronNombreApellido, $cambios['nombre']);
+                    $vEmail = isset($cambios['email']) && $this->validador($this->patronEmail, $cambios['email']);
+                    $vDocumento = isset($cambios['documento']) && $this->validador($this->patronDocumento, $cambios['documento']);
+                    $vActivo = isset($cambios['activo']) && ($cambios['activo'] == true && $cambios['activo'] == false);
 
-                    if (!$existeInquilino) {
-                        $inquilinos = $connection->prepare('UPDATE inquilinos SET id = :idURL, apellido = :nuevoApellido, nombre = :nuevoNombre, documento = :nuevoDocumento, email = :nuevoEmail, activo = :nuevoActivo WHERE id = :idURL');
+                    if ($vApellido && $vNombre && $vEmail && $vDocumento && $vActivo) {
+                        $inquilinos = $connection->prepare('SELECT apellido, nombre, documento, email, activo FROM inquilinos WHERE documento = :nuevoDocumento AND id <> :idURL');
                         $inquilinos->execute([
-                            ':idURL' => $id,
-                            ':nuevoApellido' => $cambios['apellido'],
-                            ':nuevoNombre' => $cambios['nombre'],
                             ':nuevoDocumento' => $cambios['documento'],
-                            ':nuevoEmail' => $cambios['email'],
-                            ':nuevoActivo' => $cambios['activo']
+                            ':idURL' => $id,
                         ]);
+                        $existeInquilino = $inquilinos->fetch();
 
-                        $this->data['Status'] = 'Success';
-                        $this->data['Mensaje'] = 'Cambios en el Inquilino realizados correctamente';
-                        $this->data['Data'] = $cambios;
-                        $this->data['Codigo'] = '200';
+                        if (!$existeInquilino) {
+                            $inquilinos = $connection->prepare('UPDATE inquilinos SET id = :idURL, apellido = :nuevoApellido, nombre = :nuevoNombre, documento = :nuevoDocumento, email = :nuevoEmail, activo = :nuevoActivo WHERE id = :idURL');
+                            $inquilinos->execute([
+                                ':idURL' => $id,
+                                ':nuevoApellido' => $cambios['apellido'],
+                                ':nuevoNombre' => $cambios['nombre'],
+                                ':nuevoDocumento' => $cambios['documento'],
+                                ':nuevoEmail' => $cambios['email'],
+                                ':nuevoActivo' => $cambios['activo']
+                            ]);
 
+                            $this->data['Status'] = 'Success';
+                            $this->data['Mensaje'] = 'Cambios en el Inquilino realizados correctamente';
+                            $this->data['Data'] = $cambios;
+                            $this->data['Codigo'] = '200';
+
+                        } else {
+                            $this->data['Status'] = 'Fail';
+                            $this->data['Mensaje'] = 'Ya existe otro Inquilino con el numero de documento ingresado.';
+                            $this->data['Data'] = $cambios['documento'];
+                            $this->data['Codigo'] = '400';
+                        }
                     } else {
+                        if (!$vApellido)
+                            $eFormato['apellido'] = 'El formato del apellido enviado es incorrecto, no se permite ningun caracter que no sea alfanumerico.';
+                        if (!$vNombre)
+                            $eFormato['nombre'] = 'El formato del nombre enviado es incorrecto, no se permite ningun caracter que no sea alfanumerico.';
+                        if (!$vDocumento)
+                            $eFormato['documento'] = 'El formato del documento enviado es incorrecto, debe seguir el patron xx.xxx.xxx o x.xxx.xxx';
+                        if (!$vEmail)
+                            $eFormato['email'] = 'El formato del email enviado es incorrecto.';
+                        if (!$vActivo)
+                            $eFormato['activo'] = 'El formato del estado del inquilino enviado es incorrecto. Solo admite valores true o false.';
+
                         $this->data['Status'] = 'Fail';
-                        $this->data['Mensaje'] = 'Ya existe otro Inquilino con el numero de documento ingresado.';
-                        $this->data['Data'] = $cambios['documento'];
-                        $this->data['Codigo'] = '?'; // Que codigo de error se debe enviar en este tipo de conflictos? DUDA
+                        $this->data['Mensaje'] = $eFormato;
+                        $this->data['Data'] = $cambios;
+                        $this->data['Codigo'] = '400';
                     }
                 } else {
-                    if (!$vApellido)
-                        $eFormato['apellido'] = 'El formato del apellido enviado es incorrecto, no se permite ningun caracter que no sea alfanumerico.';
-                    if (!$vNombre)
-                        $eFormato['nombre'] = 'El formato del nombre enviado es incorrecto, no se permite ningun caracter que no sea alfanumerico.';
-                    if (!$vDocumento)
-                        $eFormato['documento'] = 'El formato del documento enviado es incorrecto, debe seguir el patron xx.xxx.xxx o x.xxx.xxx';
-                    if (!$vEmail)
-                        $eFormato['email'] = 'El formato del email enviado es incorrecto.';
-                    if (!$vActivo)
-                        $eFormato['activo'] = 'El formato del estado del inquilino enviado es incorrecto. Solo admite valores true o false.';
-
                     $this->data['Status'] = 'Fail';
-                    $this->data['Mensaje'] = $eFormato;
-                    $this->data['Data'] = $cambios;
-                    $this->data['Codigo'] = '400';
+                    $this->data['Mensaje'] = 'El ID ingresado no se encuentra en la base de datos.';
+                    $this->data['Data'] = $id;
+                    $this->data['Codigo'] = '404';
                 }
+
             } else {
                 $this->data['Status'] = 'Fail';
-                $this->data['Mensaje'] = 'Error: El ID ingresado no se encuentra en la base de datos.';
-                $this->data['Data'] = $id;
-                $this->data['Codigo'] = '404'; // Que codigo de error se debe enviar en este tipo de conflictos? DUDA
+                $this->data['Mensaje'] = 'El inquilino no se puede editar porque ya se encuentra asociado a una reserva activa actualmente.';
+                $this->data['Data'] = $existeReserva;
+                $this->data['Codigo'] = '400';
             }
 
         } catch (Exception $e) {
@@ -171,24 +181,36 @@ class Inquilino extends Endpoint
             $id = $args['id'];
             $connection = $this->getConnection();
 
+            // No se puede eliminar el inquilino si ya hay una reserva a su nombre
+            $reserva = $connection->prepare('SELECT * FROM reservas WHERE inquilino_id = :idURL');
+            $reserva->execute([':idURL' => $id]);
+            $existeReserva = $reserva->fetch(PDO::FETCH_ASSOC);
 
-            $inquilinos = $connection->prepare('SELECT * FROM inquilinos WHERE id = :idURL');
-            $inquilinos->execute([':idURL' => $id]);
-            $existeID = $inquilinos->fetchColumn();
-
-            if ($existeID) {
-                $inquilinos = $connection->prepare('DELETE FROM inquilinos WHERE id = :idURL');
+            if (!$existeReserva) {
+                $inquilinos = $connection->prepare('SELECT * FROM inquilinos WHERE id = :idURL');
                 $inquilinos->execute([':idURL' => $id]);
-                $this->data['Status'] = 'Success';
-                $this->data['Mensaje'] = 'Inquilino eliminado correctamente de la base de datos.';
-                $this->data['Data'] = $id;
-                $this->data['Codigo'] = '200';
+                $existeID = $inquilinos->fetchColumn();
+
+                if ($existeID) {
+                    $inquilinos = $connection->prepare('DELETE FROM inquilinos WHERE id = :idURL');
+                    $inquilinos->execute([':idURL' => $id]);
+                    $this->data['Status'] = 'Success';
+                    $this->data['Mensaje'] = 'Inquilino eliminado correctamente de la base de datos.';
+                    $this->data['Data'] = $id;
+                    $this->data['Codigo'] = '200';
+                } else {
+                    $this->data['Status'] = 'Fail';
+                    $this->data['Mensaje'] = 'Error: El ID ingresado no se encuentra en la base de datos.';
+                    $this->data['Data'] = $id;
+                    $this->data['Codigo'] = '404';
+                }
             } else {
                 $this->data['Status'] = 'Fail';
-                $this->data['Mensaje'] = 'Error: El ID ingresado no se encuentra en la base de datos.';
-                $this->data['Data'] = $id;
-                $this->data['Codigo'] = '404';
+                $this->data['Mensaje'] = 'El inquilino no se puede eliminar porque ya se encuentra asociado a una reserva.';
+                $this->data['Data'] = $existeReserva;
+                $this->data['Codigo'] = '400';
             }
+
         } catch (Exception $e) {
             $this->data['Status'] = 'Throw Exception';
             $this->data['Mensaje'] = $e->getMessage();
@@ -221,7 +243,7 @@ class Inquilino extends Endpoint
         return $response;
     }
 
-    public function verInquilino(Request $request, Response $response, $args) // Está bien resuelto? DUDA
+    public function verInquilino(Request $request, Response $response, $args)
     {
         try {
 
@@ -253,7 +275,7 @@ class Inquilino extends Endpoint
         return $response;
     }
 
-    public function historial(Request $request, Response $response, $args) // Esta bien resuelto? DUDA
+    public function historial(Request $request, Response $response, $args)
     {
         try {
 
