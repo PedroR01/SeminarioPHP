@@ -45,9 +45,3 @@ docker volume rm seminariophp
 ```bash
 docker compose run --rm composer dump-autoload
 ```
-
-## Validaciones a tener en cuenta
-
-<p>Al introducir el documento del Inquilino, respetar la validación de expresion regular con el siguiente formato: <br>xx.xxx.xxx o x.xxx.xxx</p>
-
-<p>Al introducir el domicilio de la Propiedad, respetar la validación de expresion regular con el siguiente formato (sin usar las ""): <br>Calle "numeroDeCalle" "numeroDeDomicilio"</p>

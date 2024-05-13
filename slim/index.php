@@ -1,7 +1,5 @@
 <?php
 
-// ANOTACIONES -- Autoload en el composer para el NAMESPACE. El NAMESPACE es para poder hacer el enrutamiento con una clase. Faltaria añadir una carpeta src para meter la de endpoints y ahi cambiarla a Endpoints
-
 use Slim\Factory\AppFactory;
 
 use Endpoints\Localidades;
@@ -10,12 +8,12 @@ use Endpoints\Inquilino;
 use Endpoints\Propiedad;
 use Endpoints\Reserva;
 
-require __DIR__ . '/vendor/autoload.php'; //Carga las clases a las que hace referencia arriba
+require __DIR__ . '/vendor/autoload.php';
 
 $app = AppFactory::create();
-$app->addBodyParsingMiddleware(); //Ya que por defecto PSR-7 no admite formatos JSON o XML, el contenido se necesita decodificar. Este metodo se encarga de esta decodificación para poder tratar con ese tipo de formatos.
-$app->addRoutingMiddleware(); //Gestionar error cuando queremos acceder a una ruta no definida (error 404: not found x ej) -- Sin esto te puede tirar 200
-$app->addErrorMiddleware(true, true, true); //Permite mostrar los errores del codigo
+$app->addBodyParsingMiddleware();
+$app->addRoutingMiddleware();
+$app->addErrorMiddleware(true, true, true);
 
 $app->add(function ($request, $handler) {
     $response = $handler->handle($request);
@@ -24,7 +22,7 @@ $app->add(function ($request, $handler) {
     return $response
         ->withHeader('Access-Control-Allow-Origin', '*')
         ->withHeader('Access-Control-Allow-Headers', 'X-Requested-With, Content-Type, Accept, Origin, Authorization')
-        ->withHeader('Access-Control-Allow-Methods', 'OPTIONS, GET, POST, PUT, PATCH, DELETE') // Permite acceder a estos metodos desde cualquier lado en React, evita que tire error.
+        ->withHeader('Access-Control-Allow-Methods', 'OPTIONS, GET, POST, PUT, PATCH, DELETE')
         ->withHeader('Content-Type', 'application/json')
     ;
 });

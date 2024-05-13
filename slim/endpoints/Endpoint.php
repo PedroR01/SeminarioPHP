@@ -8,24 +8,14 @@ use Psr\Http\Message\ServerRequestInterface as Request;
 
 abstract class Endpoint
 {
-    // Permite una secuencia de al menos 2 caracteres alfabéticos (mayúsculas o minúsculas) o letras acentuadas (como á, é, í, ó, ú, ñ).
-    protected $patronNombreApellido = "/^[A-Za-záéíóúñ]{2,}$/";
-
-    // [a-zA-Z0-9_.-]+: Permite una secuencia de caracteres alfanuméricos, puntos, guiones bajos o guiones antes del símbolo “@”.
-    // [a-zA-Z0-9]+: Luego del @, permite una secuencia de caracteres alfanuméricos.
-    // \.: Permite el punto que separa el dominio de nivel superior.
-    // [a-zA-Z]{2,6}: Permite de 2 a 6 caracteres alfabéticos (por ejemplo, “com”, “org”, “es”)
+    protected $patronAlfabeticoEspaciado = "/^[A-Za-záéíóúñ ]{2,}$/";
+    protected $patronAlfabetico = "/^[A-Za-záéíóúñ]{2,}$/";
     protected $patronEmail = "/^[a-zA-Z0-9_.-]+@[a-zA-Z0-9]+.[a-zA-Z]{2,6}$/";
-
-    // Permite una secuencia de caracteres númericos según el criterio del DNI argentino
-    protected $patronDocumento = "/^[0-9]{1,2}+.[0-9]{3,}+.[0-9]{3,}$/";
-
-    // Calle "numeroDeCalle" "numeroDeDomicilio".
-    protected $patronDomicilio = '/^(Calle)\s\d{1,3}\s\d{3,4}+$/';
+    protected $patronDocumento = "/^[1-9]{1}+[0-9]{6,7}$/";
 
     protected $data = [
         'Status' => '',
-        'Mensaje' => '',
+        'Mensaje' => [],
         'Codigo' => '',
         'Data' => null,
     ];
@@ -33,16 +23,16 @@ abstract class Endpoint
     protected abstract function crear(Request $request, Response $response);
     protected abstract function editar(Request $request, Response $response, $args);
     protected abstract function eliminar(Request $request, Response $response, $args);
-    protected abstract function listar(Request $request, Response $response, array $args);
+    protected abstract function listar(Request $request, Response $response, $args);
 
-    public function getConnection() // Contiene la conexion con la base de datos. Metodos PDO
+    public function getConnection()
     {
         $dbhost = "db";
         $dbname = "seminariophp";
         $dbuser = "seminariophp";
         $dbpass = "seminariophp";
 
-        // PDO es una clase que nos permite realizar una "conexion" entre la base de datos y PHP. Provee de metodos (docu. PHP)
+
         $connection = new PDO("mysql:host=$dbhost;dbname=$dbname", $dbuser, $dbpass);
         $connection->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
@@ -60,5 +50,38 @@ abstract class Endpoint
     protected function validarCantidades($body, $campo, $min)
     {
         return (is_int($body["$campo"]) && $body["$campo"] > $min);
+    }
+
+    protected function verificadorEspacios($string)
+    {
+        $contadorCaract = 0;
+        if ($string != "") {
+            for ($i = 0; $i < mb_strlen($string); $i++) {
+                $caracter = mb_substr($string, $i, 1);
+
+                if ($i > 0) {
+                    if ($caracter != " ")
+                        $contadorCaract++;
+                    else if ($caracter == " ") { // Permite espacios en la cadena cuando hay por los menos 2 caracteres ya ingresados
+                        if ($contadorCaract >= 2)
+                            $contadorCaract = 0;
+                        else
+                            return false;
+                    }
+                } else if ($i == 0 && $caracter == " ") // Si ya hay un espacio al comienzo de la cadena, se toma como un valor incorrecto.
+                    return false;
+            }
+        } else
+            return false;
+
+        return true;
+    }
+
+    protected function HTTPCodeError(Response $response)
+    {
+        if ($this->data != 200) {
+            $response->getBody()->write(json_encode($this->data));
+            return $response->withStatus($this->data['Codigo']);
+        }
     }
 }

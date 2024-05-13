@@ -1,6 +1,4 @@
 <?php
-// ¿Vamos a ver todo lo que es la configuracion APACHE para un servidor? Yo no termino de entender que es lo que nos está permitiendo tener un servidor propio local desde Docker. Osea por ej yo se que con react haces un npm run dev y te levanta el localHost con los archivos pero con docker nose como funciona.
-
 namespace Endpoints;
 
 use Exception;
@@ -17,26 +15,40 @@ class Localidades extends Endpoint
 
             $connection = $this->getConnection();
             $nuevaLocalidad = $request->getParsedBody();
+            $nombreSeteado = isset($nuevaLocalidad['nombre']);
 
-            $tablaLocalidades = $connection->prepare('SELECT nombre FROM localidades WHERE nombre = :nuevoNombre');
-            $tablaLocalidades->execute([':nuevoNombre' => $nuevaLocalidad['nombre']]);
-            $existe = $tablaLocalidades->fetchColumn();
+            if ($nombreSeteado && $this->verificadorEspacios($nuevaLocalidad['nombre']) && $this->validador($this->patronAlfabeticoEspaciado, $nuevaLocalidad['nombre'])) {
 
-            if (!$existe && isset($nuevaLocalidad)) {
-                $tablaLocalidades = $connection->prepare('INSERT INTO localidades (nombre) VALUES (:nuevoNombre)');
+                $tablaLocalidades = $connection->prepare('SELECT nombre FROM localidades WHERE nombre = :nuevoNombre');
                 $tablaLocalidades->execute([':nuevoNombre' => $nuevaLocalidad['nombre']]);
-                $this->data['Status'] = 'Success';
-                $this->data['Mensaje'] = 'La localidad ha sido agregada correctamente.';
-                $this->data['Data'] = $nuevaLocalidad;
-                $this->data['Codigo'] = '200';
+                $existe = $tablaLocalidades->fetchColumn();
+
+                if (!$existe) {
+                    $tablaLocalidades = $connection->prepare('INSERT INTO localidades (nombre) VALUES (:nuevoNombre)');
+                    $tablaLocalidades->execute([':nuevoNombre' => $nuevaLocalidad['nombre']]); // Error: A scalar of type 'null' used as an array.
+                    $this->data['Status'] = 'Success';
+                    $this->data['Mensaje'] = 'La localidad ha sido agregada correctamente.';
+                    $this->data['Data'] = $nuevaLocalidad;
+                    $this->data['Codigo'] = 200;
+                } else {
+                    $this->data['Status'] = 'Fail';
+                    $this->data['Data'] = $nuevaLocalidad;
+                    $this->data['Codigo'] = 400;
+                    $this->data['Mensaje'] = 'La localidad ingresada ya se encuentra en la base da datos.';
+
+                }
             } else {
                 $this->data['Status'] = 'Fail';
-                $this->data['Data'] = $nuevaLocalidad;
-                $this->data['Codigo'] = '400';
-                if ($existe)
-                    $this->data['Mensaje'] = 'La localidad ingresada ya se encuentra en la base da datos.';
+                $this->data['Codigo'] = 400;
+                if (!$nombreSeteado)
+                    $this->data['Mensaje'] = 'Falta el campo "nombre" de localidad';
                 else
-                    $this->data['Mensaje'] = 'No se ha ingresado ningún nombre de localidad';
+                    $this->data['Mensaje'] = 'Campo "nombre" vacio o formato incorrecto.';
+            }
+
+            if ($this->data['Codigo'] != 200) {
+                $response->getBody()->write(json_encode($this->data));
+                return $response->withStatus($this->data['Codigo']);
             }
 
         } catch (Exception $e) {
@@ -59,52 +71,53 @@ class Localidades extends Endpoint
             $localidad->execute([':num' => $id]);
             $existeID = $localidad->fetchColumn();
 
-            // No se puede editar una localidad si ya esta asociada a la tabla de propiedades
-            $propiedad = $connection->prepare('SELECT * FROM propiedades WHERE localidad_id = :num');
-            $propiedad->execute([':num' => $id]);
-            $existePropiedad = $propiedad->fetch(PDO::FETCH_ASSOC);
+            if ($existeID) {
+                $cambioNombre = $request->getParsedBody();
+                $nombreSeteado = isset($cambioNombre['nombre']);
 
-            if (!$existePropiedad) {
-                if ($existeID) {
-                    $cambioNombre = $request->getParsedBody();
-
-                    $localidad = $connection->prepare('SELECT nombre FROM localidades WHERE nombre = :nuevoNombre and id <> :num'); // Verifica si el nuevo nombre se encuentra usado ya en otro ID existente.
-                    $localidad->execute([':nuevoNombre' => $cambioNombre]);
+                if ($nombreSeteado && $this->verificadorEspacios($cambioNombre['nombre']) && $this->validador($this->patronAlfabeticoEspaciado, $cambioNombre['nombre'])) {
+                    $localidad = $connection->prepare('SELECT nombre FROM localidades WHERE nombre = :nuevoNombre and id <> :num');
+                    $localidad->execute([':num' => $id, ':nuevoNombre' => $cambioNombre['nombre']]);
                     $existeNombre = $localidad->fetchColumn();
-
-                    if (!$existeNombre && isset($cambioNombre)) {
+                    if (!$existeNombre) {
                         $localidad = $connection->prepare('UPDATE localidades SET nombre = :nuevoNombre WHERE id = :num');
-                        $localidad->execute([':num' => $id, ':nuevoNombre' => $cambioNombre]);
+                        $localidad->execute([':num' => $id, ':nuevoNombre' => $cambioNombre['nombre']]);
                         $this->data['Status'] = 'Success';
-                        $this->data['Mensaje'] = 'La localidad ha sido agregada correctamente.';
-                        $this->data['Data'] = $cambioNombre;
-                        $this->data['Codigo'] = '200';
+                        $this->data['Mensaje'] = 'La localidad ha sido editada correctamente.';
+                        $this->data['Data'] = [
+                            'Nueva localidad' => $cambioNombre['nombre'],
+                            'Anterior localidad' => $existeID
+                        ];
+                        $this->data['Codigo'] = 200;
                     } else {
                         $this->data['Status'] = 'Fail';
                         $this->data['Data'] = $cambioNombre;
-                        $this->data['Codigo'] = '400';
-                        if ($existeNombre)
-                            $this->data['Mensaje'] = 'La localidad ingresada ya se encuentra en la base da datos.';
-                        else
-                            $this->data['Mensaje'] = 'No se ha ingresado ningún nombre de localidad';
+                        $this->data['Codigo'] = 400;
+                        $this->data['Mensaje'] = 'La localidad ingresada ya se encuentra en la base da datos.';
                     }
                 } else {
                     $this->data['Status'] = 'Fail';
-                    $this->data['Mensaje'] = 'La localidad correspondiente al ID ingresado no existe.';
-                    $this->data['Data'] = $id;
-                    $this->data['Codigo'] = '400';
+                    $this->data['Codigo'] = 400;
+                    if (!$nombreSeteado)
+                        $this->data['Mensaje'] = 'Falta el campo "nombre" de localidad.';
+                    else
+                        $this->data['Mensaje'] = 'Campo "nombre" vacio o formato incorrecto.';
                 }
             } else {
                 $this->data['Status'] = 'Fail';
-                $this->data['Mensaje'] = 'La localidad no se puede editar porque ya se encuentra asociada a una propiedad.';
-                $this->data['Data'] = $existePropiedad;
-                $this->data['Codigo'] = '400';
+                $this->data['Mensaje'] = 'La localidad correspondiente al ID ingresado no existe.';
+                $this->data['Data'] = $id;
+                $this->data['Codigo'] = 400;
             }
-
+            if ($this->data['Codigo'] != 200) {
+                $response->getBody()->write(json_encode($this->data));
+                return $response->withStatus($this->data['Codigo']);
+            }
         } catch (Exception $e) {
             $this->data['Status'] = 'Throw Exception';
             $this->data['Mensaje'] = $e->getMessage();
-            $this->data['Codigo'] = $e->getCode();
+            $this->data['Codigo'] = $e->getCode(); //106
+
         }
 
         $response->getBody()->write(json_encode($this->data));
@@ -133,18 +146,22 @@ class Localidades extends Endpoint
                     $localidad->execute([':num' => $id]);
                     $this->data['Status'] = 'Success';
                     $this->data['Mensaje'] = 'La localidad ha sido eliminada correctamente.';
-                    $this->data['Codigo'] = '200';
+                    $this->data['Codigo'] = 200;
                 } else {
                     $this->data['Status'] = 'Fail';
                     $this->data['Mensaje'] = 'La localidad correspondiente al ID ingresado no existe.';
                     $this->data['Data'] = $id;
-                    $this->data['Codigo'] = '400';
+                    $this->data['Codigo'] = 404;
                 }
             } else {
                 $this->data['Status'] = 'Fail';
                 $this->data['Mensaje'] = 'La localidad no se puede eliminar porque ya se encuentra asociada a una propiedad.';
-                $this->data['Data'] = $existePropiedad;
-                $this->data['Codigo'] = '400';
+                $this->data['Data'] = ['Propiedad' => $existePropiedad];
+                $this->data['Codigo'] = 400;
+            }
+            if ($this->data['Codigo'] != 200) {
+                $response->getBody()->write(json_encode($this->data));
+                return $response->withStatus($this->data['Codigo']);
             }
 
         } catch (Exception $e) {
@@ -156,7 +173,7 @@ class Localidades extends Endpoint
         return $response;
     }
 
-    public function listar(Request $request, Response $response, array $args)
+    public function listar(Request $request, Response $response, $args)
     {
         try {
             $connection = $this->getConnection();
