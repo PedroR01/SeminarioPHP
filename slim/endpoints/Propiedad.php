@@ -327,39 +327,75 @@ class Propiedad extends Endpoint
 
             // Arma la orden o busqueda en base a los filtros recibidos
             $sql = "SELECT * FROM propiedades WHERE 1=1";
-
-            if ((isset($filtro['disponible']) && $filtro['disponible'] != "") && ($filtro['disponible'] === "1" || $filtro['disponible'] === "0" || $filtro['disponible'] === "true" || $filtro['disponible'] === "false")) {
-                if ($filtro['disponible'] == false || $filtro['disponible'] == "false")
-                    $filtro['disponible'] = 0;
-                else if ($filtro['disponible'] == true)
-                    $filtro['disponible'] = 1;
-
-                $sql .= " AND disponible=" . $filtro['disponible'];
-            }
-
             $patronNumeroFiltro = "/^[1-9]{1,}$/";
-            if (!empty($filtro['localidad_id']) && preg_match($patronNumeroFiltro, $filtro['localidad_id'])) // Validador de que solo se admiten numeros
-                $sql .= " AND localidad_id=" . $filtro['localidad_id'];
-            if (!empty($filtro['fecha_inicio_disponibilidad']) && strtotime($filtro['fecha_inicio_disponibilidad']))
-                $sql .= " AND fecha_inicio_disponibilidad>=" . $filtro['fecha_inicio_disponibilidad'];
-            if (!empty($filtro['cantidad_huespedes']) && preg_match($patronNumeroFiltro, $filtro['cantidad_huespedes']))
-                $sql .= " AND cantidad_huespedes=" . $filtro['cantidad_huespedes'];
+
+            // Verificar filtros introducidos y su formato
+            $vDisponible = true;
+            $vLocalidad = true;
+            $vFecha = true;
+            $vCantidadHuespedes = true;
+            foreach ($filtro as $clave => $valor) {
+                switch ($clave) {
+                    case 'disponible':
+                        if ($filtro['disponible'] != "" && ($filtro['disponible'] === "1" || $filtro['disponible'] === "0" || $filtro['disponible'] === "true" || $filtro['disponible'] === "false")) {
+                            if ($filtro['disponible'] == false || $filtro['disponible'] == "false")
+                                $filtro['disponible'] = 0;
+                            else if ($filtro['disponible'] == true)
+                                $filtro['disponible'] = 1;
+                            $sql .= " AND disponible=" . $filtro['disponible'];
+                        } else {
+                            $this->data['Mensaje'] = array_merge($this->data['Mensaje'], ['disponible' => "Formato incorrecto del campo. Respetar formato de tipo boolean (true/false) o (1/0)"]);
+                            $vDisponible = false;
+                        }
+                        break;
+
+                    case 'localidad_id':
+                        if (preg_match($patronNumeroFiltro, $filtro['localidad_id']))
+                            $sql .= " AND localidad_id=" . $filtro['localidad_id'];
+                        else {
+                            $this->data['Mensaje'] = array_merge($this->data['Mensaje'], ['localidad_id' => "Formato incorrecto del campo. Respetar formato de tipo entero > 0"]);
+                            $vLocalidad = false;
+                        }
+                        break;
+
+                    case 'fecha_inicio_disponibilidad':
+                        if (strtotime($filtro['fecha_inicio_disponibilidad']))
+                            $sql .= " AND fecha_inicio_disponibilidad>=" . $filtro['fecha_inicio_disponibilidad'];
+                        else {
+                            $this->data['Mensaje'] = array_merge($this->data['Mensaje'], ['fecha_inicio_disponibilidad' => "Formato incorrecto del campo. Respetar formato de tipo fecha (YYYY-mm-dd)"]);
+                            $vFecha = false;
+                        }
+                        break;
+
+                    case 'cantidad_huespedes':
+                        if (preg_match($patronNumeroFiltro, $filtro['cantidad_huespedes']))
+                            $sql .= " AND cantidad_huespedes=" . $filtro['cantidad_huespedes'];
+                        else {
+                            $this->data['Mensaje'] = array_merge($this->data['Mensaje'], ['cantidad_huespedes' => "Formato incorrecto del campo. Respetar formato de tipo entero > 0"]);
+                            $vCantidadHuespedes = false;
+                        }
+                        break;
+                }
+            }
 
             $datos = $connection->prepare($sql);
             $datos->execute();
             $datosFiltrados = $datos->fetchAll(PDO::FETCH_ASSOC);
 
-            // Si en el filtro se ingreso un valor y este no es valido para el filtro, se avisa al usuario. SI HAY POR LO MENOS UN VALOR DE FILTRADO CORRECTO NO ENTRA A ESTE IF RESOLVER -- Recorrer todo el contenido del filtro y ver que los nombres clave también se encuentren en la orden SQL?
-            if ($filtro && str_ends_with("WHERE 1=1", $sql)) {
+            if (!$vDisponible || !$vLocalidad || !$vFecha || !$vCantidadHuespedes) {
                 $this->data['Status'] = 'Fail';
-                $this->data['Mensaje'] = 'Valor de filtrado no valido.';
-                $this->data['Data'] = $datosFiltrados;
+                $this->data['Mensaje'] = array_merge($this->data['Mensaje'], ['Error' => 'Valor de filtrado no valido.']);
+                $this->data['Data'] = null;
                 $this->data['Codigo'] = 400;
             } else {
                 if ($filtro && !$datosFiltrados)
                     $this->data['Mensaje'] = 'No se encontraron propiedades con el filtro ingresado.';
                 else {
-                    $this->data['Mensaje'] = 'Propiedades recibidas correctamente.'; // DEVUELVE DATA = NULL RESOLVER
+                    if ($datosFiltrados != null)
+                        $this->data['Mensaje'] = 'Propiedades recibidas correctamente.';
+                    else
+                        $this->data['Mensaje'] = 'No se han encontrado propiedades con el filtro buscado.';
+
                     $this->data['Data'] = $datosFiltrados;
                 }
                 $this->data['Status'] = 'Success';

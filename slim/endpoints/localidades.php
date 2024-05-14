@@ -46,10 +46,7 @@ class Localidades extends Endpoint
                     $this->data['Mensaje'] = 'Campo "nombre" vacio o formato incorrecto.';
             }
 
-            if ($this->data['Codigo'] != 200) {
-                $response->getBody()->write(json_encode($this->data));
-                return $response->withStatus($this->data['Codigo']);
-            }
+            return $this->HTTPCodeError($response);
 
         } catch (Exception $e) {
             $this->data['Status'] = 'Throw Exception';
@@ -76,9 +73,10 @@ class Localidades extends Endpoint
                 $nombreSeteado = isset($cambioNombre['nombre']);
 
                 if ($nombreSeteado && $this->verificadorEspacios($cambioNombre['nombre']) && $this->validador($this->patronAlfabeticoEspaciado, $cambioNombre['nombre'])) {
-                    $localidad = $connection->prepare('SELECT nombre FROM localidades WHERE nombre = :nuevoNombre and id <> :num');
+                    $localidad = $connection->prepare('SELECT * FROM localidades WHERE nombre = :nuevoNombre and id <> :num');
                     $localidad->execute([':num' => $id, ':nuevoNombre' => $cambioNombre['nombre']]);
-                    $existeNombre = $localidad->fetchColumn();
+                    $existeNombre = $localidad->fetch(PDO::FETCH_ASSOC);
+                    // Lo deja cambiar al mismo nombre que ya tenia anteriormente
                     if (!$existeNombre) {
                         $localidad = $connection->prepare('UPDATE localidades SET nombre = :nuevoNombre WHERE id = :num');
                         $localidad->execute([':num' => $id, ':nuevoNombre' => $cambioNombre['nombre']]);
@@ -91,7 +89,7 @@ class Localidades extends Endpoint
                         $this->data['Codigo'] = 200;
                     } else {
                         $this->data['Status'] = 'Fail';
-                        $this->data['Data'] = $cambioNombre;
+                        $this->data['Data'] = ['Localidad existente con ese nombre' => $existeNombre];
                         $this->data['Codigo'] = 400;
                         $this->data['Mensaje'] = 'La localidad ingresada ya se encuentra en la base da datos.';
                     }
@@ -109,10 +107,8 @@ class Localidades extends Endpoint
                 $this->data['Data'] = $id;
                 $this->data['Codigo'] = 400;
             }
-            if ($this->data['Codigo'] != 200) {
-                $response->getBody()->write(json_encode($this->data));
-                return $response->withStatus($this->data['Codigo']);
-            }
+
+            return $this->HTTPCodeError($response);
         } catch (Exception $e) {
             $this->data['Status'] = 'Throw Exception';
             $this->data['Mensaje'] = $e->getMessage();
@@ -156,14 +152,11 @@ class Localidades extends Endpoint
             } else {
                 $this->data['Status'] = 'Fail';
                 $this->data['Mensaje'] = 'La localidad no se puede eliminar porque ya se encuentra asociada a una propiedad.';
-                $this->data['Data'] = ['Propiedad' => $existePropiedad];
+                $this->data['Data'] = ['Propiedad asociada' => $existePropiedad];
                 $this->data['Codigo'] = 400;
             }
-            if ($this->data['Codigo'] != 200) {
-                $response->getBody()->write(json_encode($this->data));
-                return $response->withStatus($this->data['Codigo']);
-            }
 
+            return $this->HTTPCodeError($response);
         } catch (Exception $e) {
             $this->data['Status'] = 'Throw Exception';
             $this->data['Mensaje'] = $e->getMessage();
@@ -183,7 +176,7 @@ class Localidades extends Endpoint
             $this->data['Status'] = 'Success';
             $this->data['Mensaje'] = 'Localidades recibidas correctamente.';
             $this->data['Data'] = $datos;
-            $this->data['Codigo'] = '200';
+            $this->data['Codigo'] = 200;
 
         } catch (Exception $e) {
             $this->data['Status'] = 'Throw Exception';

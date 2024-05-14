@@ -25,7 +25,7 @@ class Inquilino extends Endpoint
             if ($vApellido && $vNombre && $vEmail && $vDocumento && $vActivo) {
                 $tablaInquilinos = $connection->prepare('SELECT * FROM inquilinos WHERE documento = :documento');
                 $tablaInquilinos->execute([':documento' => $nuevoInquilino['documento']]);
-                $existe = $tablaInquilinos->fetchColumn();
+                $existe = $tablaInquilinos->fetch(PDO::FETCH_ASSOC);
 
                 if (!$existe) {
                     $tablaInquilinos = $connection->prepare('INSERT INTO inquilinos (apellido, nombre, documento, email, activo) VALUES (:apellido, :nombre, :documento, :email, :activo)');
@@ -44,7 +44,7 @@ class Inquilino extends Endpoint
                 } else {
                     $this->data['Status'] = 'Fail';
                     $this->data['Mensaje'] = 'Error: El inquilino ingresado ya existe en la base de datos.';
-                    $this->data['Data'] = $nuevoInquilino;
+                    $this->data['Data'] = ['Inquilino existente' => $existe];
                     $this->data['Codigo'] = 400;
                 }
             } else {
@@ -97,7 +97,7 @@ class Inquilino extends Endpoint
                 $vActivo = isset($cambios['activo']) && is_bool($cambios['activo']);
 
                 if ($vApellido && $vNombre && $vEmail && $vDocumento && $vActivo) {
-                    $tablaInquilinos = $connection->prepare('SELECT apellido, nombre, documento, email, activo FROM inquilinos WHERE documento = :nuevoDocumento AND id <> :idURL');
+                    $tablaInquilinos = $connection->prepare('SELECT * FROM inquilinos WHERE documento = :nuevoDocumento AND id <> :idURL');
                     $tablaInquilinos->execute([
                         ':nuevoDocumento' => $cambios['documento'],
                         ':idURL' => $id,
@@ -123,7 +123,7 @@ class Inquilino extends Endpoint
                     } else {
                         $this->data['Status'] = 'Fail';
                         $this->data['Mensaje'] = 'Ya existe otro Inquilino con el numero de documento ingresado.';
-                        $this->data['Data'] = $cambios['documento'];
+                        $this->data['Data'] = ['Inquilino existente' => $inquilinoRepetido];
                         $this->data['Codigo'] = 400;
                     }
                 } else {
@@ -239,7 +239,7 @@ class Inquilino extends Endpoint
 
             if ($existeInquilino) {
                 $this->data['Status'] = 'Success';
-                $this->data['Mensaje'] = 'Historial del inquilino recibido correctamente.';
+                $this->data['Mensaje'] = 'Inquilino recibido correctamente.';
                 $this->data['Data'] = $existeInquilino;
                 $this->data['Codigo'] = 200;
             } else {

@@ -10,6 +10,7 @@ use Psr\Http\Message\ServerRequestInterface as Request;
 class Reserva extends Endpoint
 {
     // Una reserva solo se puede realizar si el inquilino está activo y la propiedad está disponible.
+    // Además una reserva no se puede crear si la propiedad ya esta reservada en esa fecha. Fecha_desde + cantidad noches. Tampoco se puede editar a una ya ocupada.
     public function crear(Request $request, Response $response)
     {
         try {
@@ -49,8 +50,8 @@ class Reserva extends Endpoint
                 ($existePropiedad && $existeInquilino) && ($existePropiedad['disponible'] == 1 && $existeInquilino['activo'] == 1)
                 && ($datoFecha_desde && $datoCantidad_noches && $datoValor_total)
             ) {
-                $tableReserva = $connection->prepare('INSERT INTO reservas(propiedad_id, inquilino_id, fecha_desde, cantidad_noches, valor_total) VALUES(:propiedad_id, :inquilino_id, :fecha_desde, :cantidad_noches, :valor_total) ');
-                $tableReserva->execute([
+                $tablaReserva = $connection->prepare('INSERT INTO reservas(propiedad_id, inquilino_id, fecha_desde, cantidad_noches, valor_total) VALUES(:propiedad_id, :inquilino_id, :fecha_desde, :cantidad_noches, :valor_total) ');
+                $tablaReserva->execute([
                     ':propiedad_id' => $nuevaReserva['propiedad_id'],
                     ':inquilino_id' => $nuevaReserva['inquilino_id'],
                     ':fecha_desde' => $nuevaReserva['fecha_desde'],
@@ -84,9 +85,9 @@ class Reserva extends Endpoint
                     $this->data['Mensaje'] = array_merge($this->data['Mensaje'], ['valor_total' => 'No se introdujo el campo o no se introdujo un valor valido (entero > 0).']);
 
                 // NO HAY DISPONIBILIDAD O NO ESTA ACTIVO
-                if ($existePropiedad['disponible'] == 0)
+                if ($existePropiedad && $existePropiedad['disponible'] == 0)
                     $this->data['Mensaje'] = array_merge($this->data['Mensaje'], ['Propiedad["disponible"]' => 'La propiedad buscada no se encuentra disponible.']);
-                if ($existeInquilino['activo'] == 0)
+                if ($existeInquilino && $existeInquilino['activo'] == 0)
                     $this->data['Mensaje'] = array_merge($this->data['Mensaje'], ['Inquilino["activo"]' => 'El inquilino asociado para la reserva no se encuentra activo.']);
 
             }
@@ -121,24 +122,29 @@ class Reserva extends Endpoint
                 $existePropiedad = $tablaPropiedad->fetch(PDO::FETCH_ASSOC);
             }
 
+            $fechaReservada = $fechaActual;
             $datoFecha_desde = false;
-            if ($existePropiedad)
-                $datoFecha_desde = isset($editarReserva['fecha_desde']) && $editarReserva['fecha_desde'] > $fechaActual && $editarReserva['fecha_desde'] >= $existePropiedad['fecha_inicio_disponibilidad'];
+            if ($existePropiedad) {
+                $tablaReserva = $connection->prepare('SELECT fecha_desde FROM reservas WHERE id = :idURL');
+                $tablaReserva->execute([':idURL' => $id]);
+                $fechaReservada = $tablaReserva->fetchColumn();
+                $datoFecha_desde = isset($editarReserva['fecha_desde']) && ($editarReserva['fecha_desde'] > $fechaActual && $fechaReservada > $fechaActual) && $editarReserva['fecha_desde'] >= $existePropiedad['fecha_inicio_disponibilidad'];
+            }
 
             $existeInquilino = false;
             if ($datoInquilinoID) {
                 $tablaInquilino = $connection->prepare('SELECT activo FROM inquilinos WHERE id = :inquilinoID');
                 $tablaInquilino->execute([':inquilinoID' => $editarReserva['inquilino_id']]);
-                $existeInquilino = $tablaInquilino->fetchColumn();
+                $existeInquilino = $tablaInquilino->fetch(PDO::FETCH_ASSOC);
             }
 
             // la disponibilidad tiene que estar antes que la reserva y la reserva tiene que ser mayor a la fecha actual. Asi sabemos que esta disponible y a tiempo para reservar. A su vez, debe ser valido el nuevo inquilino ID y propiedad ID en caso de cambiarlos
             if (
-                (($existeInquilino && $existePropiedad) && ($existeInquilino == 1 && $existePropiedad['disponible'] == 1))
+                (($existeInquilino && $existePropiedad) && ($existeInquilino['activo'] == 1 && $existePropiedad['disponible'] == 1))
                 && ($datoFecha_desde && $datoCantidad_noches && $datoValor_total)
             ) {
-                $tableReserva = $connection->prepare('UPDATE reservas SET id = :idURL, propiedad_id = :propiedad_id, inquilino_id = :inquilino_id, fecha_desde = :fecha_desde, cantidad_noches = :cantidad_noches, valor_total = :valor_total WHERE id = :idURL');
-                $tableReserva->execute([
+                $tablaReserva = $connection->prepare('UPDATE reservas SET id = :idURL, propiedad_id = :propiedad_id, inquilino_id = :inquilino_id, fecha_desde = :fecha_desde, cantidad_noches = :cantidad_noches, valor_total = :valor_total WHERE id = :idURL');
+                $tablaReserva->execute([
                     ':idURL' => $id,
                     ':propiedad_id' => $editarReserva['propiedad_id'],
                     ':inquilino_id' => $editarReserva['inquilino_id'],
@@ -155,6 +161,8 @@ class Reserva extends Endpoint
                 $this->data['Data'] = $editarReserva;
                 $this->data['Codigo'] = 400;
 
+                if (!$fechaReservada)// HOT FIX. No es prolijo resolver esto usando la variable $fechaReservada para verificar si obtuvo o no un dato de la tabla reserva con el respectivo ID
+                    $this->data['Mensaje'] = array_merge($this->data['Mensaje'], ['reserva_id' => "No existe reserva con el ID ingresado para editar."]);
                 if (!$existePropiedad && $datoPropiedadID)
                     $this->data['Mensaje'] = array_merge($this->data['Mensaje'], ['propiedad_id' => "No existe propiedad con el ID ingresado."]);
                 else if (!$datoPropiedadID)
@@ -166,7 +174,9 @@ class Reserva extends Endpoint
 
                 if ((isset($editarReserva['fecha_desde']) && $existePropiedad) && ($editarReserva['fecha_desde'] < $existePropiedad['fecha_inicio_disponibilidad']))
                     $this->data['Mensaje'] = array_merge($this->data['Mensaje'], ['fecha_desde' => 'La propiedad no se encuentra disponible en la fecha en la que se desea realizar la reserva. Revise la disponibilidad de la propiedad e ingrese una nueva fecha de reserva.']);
-                else if (!$datoFecha_desde)
+                else if ($fechaReservada && $fechaReservada <= $fechaActual) // HOT FIX. No es prolijo resolver esto usando la variable $fechaReservada para verificar si obtuvo o no un dato de la tabla reserva con el respectivo ID
+                    $this->data['Mensaje'] = array_merge($this->data['Mensaje'], ['fecha_desde' => 'La reserva no se puede editar porque ya ha comenzado.']);
+                else if ($fechaReservada && !$datoFecha_desde)// HOT FIX. No es prolijo resolver esto usando la variable $fechaReservada para verificar si obtuvo o no un dato de la tabla reserva con el respectivo ID
                     $this->data['Mensaje'] = array_merge($this->data['Mensaje'], ['fecha_desde' => 'No se introdujo el campo o no es del tipo fecha (YYYY-mm-dd) y/o no es una fecha mayor a la actual.']);
                 if (!$datoCantidad_noches)
                     $this->data['Mensaje'] = array_merge($this->data['Mensaje'], ['cantidad_noches' => 'No se introdujo el campo o no se introdujo un valor valido (entero > 0).']);
@@ -174,10 +184,10 @@ class Reserva extends Endpoint
                     $this->data['Mensaje'] = array_merge($this->data['Mensaje'], ['valor_total' => 'No se introdujo el campo o no se introdujo un valor valido (entero > 0).']);
 
                 // NO HAY DISPONIBILIDAD O NO ESTA ACTIVO
-                if ($existePropiedad['disponible'] == 0)
-                    $this->data['Mensaje'] = array_merge($this->data['Mensaje'], ['Propiedad["disponible"]' => 'La propiedad buscada no se encuentra disponible.']);
-                if ($existeInquilino['activo'] == 0)
-                    $this->data['Mensaje'] = array_merge($this->data['Mensaje'], ['Inquilino["activo"]' => 'El inquilino asociado para la reserva no se encuentra activo.']);
+                if ($existePropiedad && $existePropiedad['disponible'] == 0)
+                    $this->data['Mensaje'] = array_merge($this->data['Mensaje'], ["Propiedad['disponible']" => 'La propiedad buscada no se encuentra disponible.']);
+                if ($existeInquilino && $existeInquilino['activo'] == 0)
+                    $this->data['Mensaje'] = array_merge($this->data['Mensaje'], ["Inquilino['activo']" => 'El inquilino asociado para la reserva no se encuentra activo.']);
 
             }
             return $this->HTTPCodeError($response);

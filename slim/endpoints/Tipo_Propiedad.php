@@ -45,11 +45,7 @@ class Tipo_Propiedad extends Endpoint
                     $this->data['Mensaje'] = 'Campo vacio o con formato incorrecto.';
             }
 
-            if ($this->data['Codigo'] != 200) {
-                $response->getBody()->write(json_encode($this->data));
-                return $response->withStatus($this->data['Codigo']);
-            }
-
+            return $this->HTTPCodeError($response);
         } catch (Exception $e) {
             $this->data['Status'] = 'Throw Exception';
             $this->data['Mensaje'] = $e->getMessage();
@@ -109,10 +105,8 @@ class Tipo_Propiedad extends Endpoint
                 $this->data['Data'] = $id;
                 $this->data['Codigo'] = 404;
             }
-            if ($this->data['Codigo'] != 200) {
-                $response->getBody()->write(json_encode($this->data));
-                return $response->withStatus($this->data['Codigo']);
-            }
+
+            return $this->HTTPCodeError($response);
         } catch (Exception $e) {
             $this->data['Status'] = 'Throw Exception';
             $this->data['Mensaje'] = $e->getMessage();
@@ -158,11 +152,8 @@ class Tipo_Propiedad extends Endpoint
                 $this->data['Data'] = ['Propiedad' => $existePropiedad];
                 $this->data['Codigo'] = 400;
             }
-            if ($this->data['Codigo'] != 200) {
-                $response->getBody()->write(json_encode($this->data));
-                return $response->withStatus($this->data['Codigo']);
-            }
 
+            return $this->HTTPCodeError($response);
         } catch (Exception $e) {
             $this->data['Status'] = 'Throw Exception';
             $this->data['Mensaje'] = $e->getMessage();
@@ -183,7 +174,7 @@ class Tipo_Propiedad extends Endpoint
             $this->data['Status'] = 'Success';
             $this->data['Mensaje'] = 'Tipos de propiedades recibidos correctamente.';
             $this->data['Data'] = $datos;
-            $this->data['Codigo'] = '200';
+            $this->data['Codigo'] = 200;
 
         } catch (Exception $e) {
             $this->data['Status'] = 'Throw Exception';
