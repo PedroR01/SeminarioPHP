@@ -2,6 +2,12 @@
 
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
 
+## Cloning from Github
+
+To run this project, node_modules (versions and dependencies) is necessary. Run:
+
+### `npm install`
+
 ## Available Scripts
 
 In the project directory, you can run:
@@ -68,3 +74,5 @@ This section has moved here: [https://facebook.github.io/create-react-app/docs/d
 ### `npm run build` fails to minify
 
 This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+
+## Using Tailwind.css framework

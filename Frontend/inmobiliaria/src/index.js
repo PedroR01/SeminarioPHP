@@ -1,20 +1,55 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { createBrowserRouter, Router, RouterProvider } from "react-router-dom";
 import "./index.css";
-import App from "./App.js";
 import reportWebVitals from "./reportWebVitals";
+import Header from "./components/Header";
+import Navbar from "./components/Navbar";
+import Footer from "./components/Footer";
 import LocalidadPage from "./pages/localidad/LocalidadPage";
+import TipoPropiedadPage from "./pages/tipoPropiedad/TipoPropiedadPage";
+import ErrorPage from "./pages/ErrorPage";
+
+const error = () => (
+  <>
+    <Header />
+    <Navbar />
+    <ErrorPage />
+    <Footer />
+  </>
+);
+
+const router = createBrowserRouter([
+  {
+    //localHost main
+    path: "/",
+    element: (
+      <>
+        <Header />
+        <Navbar />
+        <Footer />
+      </>
+    ),
+    errorElement: error(),
+  },
+  {
+    //Localidades
+    path: "/localidades",
+    element: <LocalidadPage />,
+    errorElement: error(),
+  },
+  {
+    //tipoPropiedad
+    path: "/tipoPropiedad",
+    element: <TipoPropiedadPage />,
+    errorElement: error(),
+  },
+]);
 
 const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(
   <React.StrictMode>
-    <BrowserRouter>
-      <Routes>
-        <Route path="/localidad" element={<LocalidadPage />} />
-      </Routes>
-    </BrowserRouter>
-    <App />
+    <RouterProvider router={router} />
   </React.StrictMode>
 );
 
