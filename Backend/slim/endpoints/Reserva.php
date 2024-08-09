@@ -178,9 +178,9 @@ class Reserva extends Endpoint
 
                 if ((isset($editarReserva['fecha_desde']) && $existePropiedad) && ($editarReserva['fecha_desde'] < $existePropiedad['fecha_inicio_disponibilidad']))
                     $this->data['Mensaje'] = array_merge($this->data['Mensaje'], ['fecha_desde' => 'La propiedad no se encuentra disponible en la fecha en la que se desea realizar la reserva. Revise la disponibilidad de la propiedad e ingrese una nueva fecha de reserva.']);
-                else if ($fechaReservada && $fechaReservada <= $fechaActual) // HOT FIX. No es prolijo resolver esto usando la variable $fechaReservada para verificar si obtuvo o no un dato de la tabla reserva con el respectivo ID
+                else if (($fechaReservada && $fechaReservada <= $fechaActual) && $existePropiedad) // HOT FIX. No es prolijo resolver esto usando la variable $fechaReservada para verificar si obtuvo o no un dato de la tabla reserva con el respectivo ID
                     $this->data['Mensaje'] = array_merge($this->data['Mensaje'], ['fecha_desde' => 'La reserva no se puede editar porque ya ha comenzado.']);
-                else if ($fechaReservada && !$datoFecha_desde)// HOT FIX. No es prolijo resolver esto usando la variable $fechaReservada para verificar si obtuvo o no un dato de la tabla reserva con el respectivo ID
+                else if (($fechaReservada && !$datoFecha_desde) && $existePropiedad)// HOT FIX. No es prolijo resolver esto usando la variable $fechaReservada para verificar si obtuvo o no un dato de la tabla reserva con el respectivo ID
                     $this->data['Mensaje'] = array_merge($this->data['Mensaje'], ['fecha_desde' => 'No se introdujo el campo o no es del tipo fecha (YYYY-mm-dd) y/o no es una fecha mayor a la actual.']);
                 if (!$datoCantidad_noches)
                     $this->data['Mensaje'] = array_merge($this->data['Mensaje'], ['cantidad_noches' => 'No se introdujo el campo o no se introdujo un valor valido (entero > 0).']);
@@ -220,7 +220,7 @@ class Reserva extends Endpoint
 
             $fechaActual = date('Y-m-d');
 
-            if ($existeReserva && $existeReserva > $fechaActual) {
+            if ($existeReserva && $existeReserva["fecha_desde"] > $fechaActual) {
                 $tablaReserva = $connection->prepare('DELETE FROM reservas WHERE id = :idURL');
                 $tablaReserva->execute([':idURL' => $id]);
                 $this->data['Status'] = 'Success';

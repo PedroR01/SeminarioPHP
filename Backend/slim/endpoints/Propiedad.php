@@ -14,22 +14,24 @@ class Propiedad extends Endpoint
         try {
             $connection = $this->getConnection();
             $nuevaPropiedad = $request->getParsedBody();
-
             $fechaActual = date('Y-m-d');
+
+            // Inicializar array de mensajes
+            $this->data['Mensaje'] = [];
 
             // VALIDACIONES DE FORMATOS
             $vDomicilio = isset($nuevaPropiedad['domicilio']) && is_string($nuevaPropiedad['domicilio']) && !empty(trim($nuevaPropiedad['domicilio']));
-            $vCantidad_huespedes = isset($nuevaPropiedad['cantidad_huespedes']) && (is_int($nuevaPropiedad['cantidad_huespedes']) && $nuevaPropiedad['cantidad_huespedes'] > 0);
+            $vCantidad_huespedes = isset($nuevaPropiedad['cantidad_huespedes']) && is_int($nuevaPropiedad['cantidad_huespedes']) && $nuevaPropiedad['cantidad_huespedes'] > 0;
             $vFecha_inicio_disponibilidad = isset($nuevaPropiedad['fecha_inicio_disponibilidad']) && $nuevaPropiedad['fecha_inicio_disponibilidad'] > $fechaActual;
-            $vCantidad_dias = isset($nuevaPropiedad['cantidad_dias']) && (is_int($nuevaPropiedad['cantidad_dias']) && $nuevaPropiedad['cantidad_dias'] > 0);
-            $vValor_noche = isset($nuevaPropiedad['valor_noche']) && (is_int($nuevaPropiedad['valor_noche']) && $nuevaPropiedad['valor_noche'] > 0);
+            $vCantidad_dias = isset($nuevaPropiedad['cantidad_dias']) && is_int($nuevaPropiedad['cantidad_dias']) && $nuevaPropiedad['cantidad_dias'] > 0;
+            $vValor_noche = isset($nuevaPropiedad['valor_noche']) && is_int($nuevaPropiedad['valor_noche']) && $nuevaPropiedad['valor_noche'] > 0;
             $vDisponible = isset($nuevaPropiedad['disponible']) && is_bool($nuevaPropiedad['disponible']);
             $vLocalidadID = isset($nuevaPropiedad['localidad_id']) && is_int($nuevaPropiedad['localidad_id']) && $nuevaPropiedad['localidad_id'] > 0;
             $vTipoPropiedadID = isset($nuevaPropiedad['tipo_propiedad_id']) && is_int($nuevaPropiedad['tipo_propiedad_id']) && $nuevaPropiedad['tipo_propiedad_id'] > 0;
 
             // Validaciones opcionales
-            $vCantidad_habitaciones = isset($nuevaPropiedad['cantidad_habitaciones']) && (is_int($nuevaPropiedad['cantidad_habitaciones']) && $nuevaPropiedad['cantidad_habitaciones'] > 0);
-            $vCantidad_banios = isset($nuevaPropiedad['cantidad_banios']) && (is_int($nuevaPropiedad['cantidad_banios']) && $nuevaPropiedad['cantidad_banios'] > 0);
+            $vCantidad_habitaciones = isset($nuevaPropiedad['cantidad_habitaciones']) && is_int($nuevaPropiedad['cantidad_habitaciones']) && $nuevaPropiedad['cantidad_habitaciones'] > 0;
+            $vCantidad_banios = isset($nuevaPropiedad['cantidad_banios']) && is_int($nuevaPropiedad['cantidad_banios']) && $nuevaPropiedad['cantidad_banios'] > 0;
             $vCochera = isset($nuevaPropiedad['cochera']) && is_bool($nuevaPropiedad['cochera']);
 
             // Busca si existe el id de la tabla localidades
@@ -48,6 +50,12 @@ class Propiedad extends Endpoint
                 $existeTipoPropiedad = $tablaTipoPropiedad->fetchColumn();
             }
 
+            // Adaptación a valor shortInt que admite la BD MySQL
+            if ($vDisponible && $nuevaPropiedad['disponible'] === false)
+                $nuevaPropiedad['disponible'] = 0;
+            if ($vCochera && $nuevaPropiedad['cochera'] === false)
+                $nuevaPropiedad['cochera'] = 0;
+
             // Obtencion de datos de campos no obligatorios
             $cantidadHabitaciones = $nuevaPropiedad['cantidad_habitaciones'] ?? null;
             $cantidadBanios = $nuevaPropiedad['cantidad_banios'] ?? null;
@@ -55,15 +63,7 @@ class Propiedad extends Endpoint
             $imagen = $nuevaPropiedad['imagen'] ?? null;
             $tipo_imagen = $nuevaPropiedad['tipo_imagen'] ?? null;
 
-
-            //Que es el campo de imagen? Como se llena? Bajar imagen e introducirla en base64-image.de para obtener el codigo
             if ($existeLocalidad && $existeTipoPropiedad && $vDomicilio && $vCantidad_huespedes && $vFecha_inicio_disponibilidad && $vCantidad_dias && $vDisponible && $vValor_noche) {
-                // Adaptación a valor shortInt que admite la BD MySQL
-                if ($nuevaPropiedad['disponible'] === false)
-                    $nuevaPropiedad['disponible'] = 0;
-                if ($vCochera && $nuevaPropiedad['cochera'] === false)
-                    $nuevaPropiedad['cochera'] = 0;
-
                 $tablaPropiedades = $connection->prepare('INSERT INTO propiedades (domicilio, localidad_id, cantidad_habitaciones, cantidad_banios, cochera, cantidad_huespedes, fecha_inicio_disponibilidad, cantidad_dias, disponible, valor_noche, tipo_propiedad_id, imagen, tipo_imagen) VALUES (:domicilio, :localidad_id, :cantidad_habitaciones, :cantidad_banios, :cochera, :cantidad_huespedes, :fecha_inicio_disponibilidad, :cantidad_dias, :disponible, :valor_noche, :tipo_propiedad_id, :imagen, :tipo_imagen)');
                 $tablaPropiedades->execute([
                     ':domicilio' => $nuevaPropiedad['domicilio'],
@@ -91,35 +91,33 @@ class Propiedad extends Endpoint
 
                 // ID INEXISTENTE EN OTRAS TABLAS
                 if (!$existeLocalidad)
-                    $this->data['Mensaje'] = array_merge($this->data['Mensaje'], ['localidad_id' => "No existe el ID de localidad ingresado. Verifique la existencia del campo y su valor "]);
+                    $this->data['Mensaje']['localidad_id'] = "No existe el ID de localidad ingresado. Verifique la existencia del campo y su valor ";
                 if (!$existeTipoPropiedad)
-                    $this->data['Mensaje'] = array_merge($this->data['Mensaje'], ['tipo_propiedad_id' => "No existe el ID del tipo de propiedad ingresado. Verifique la existencia del campo y su valor"]);
+                    $this->data['Mensaje']['tipo_propiedad_id'] = "No existe el ID del tipo de propiedad ingresado. Verifique la existencia del campo y su valor";
 
                 // NO SE HA RESPETADO EL FORMATO DE ALGUN CAMPO (obligatorios)
-                if (!$vDomicilio)
-                    $this->data['Mensaje'] = array_merge($this->data['Mensaje'], ['domicilio' => "Formato incorrecto del campo. Debe ser un string/cadena no vacia"]);
+                if (!$vDomicilio) {
+                    $this->data['Mensaje']['domicilio'] = "Formato incorrecto del campo. Debe ser un string/cadena no vacia";
+                }
                 if (!$vCantidad_huespedes)
-                    $this->data['Mensaje'] = array_merge($this->data['Mensaje'], ['cantidad_huespedes' => "Formato incorrecto del campo. Respetar formato de tipo entero > 0"]);
+                    $this->data['Mensaje']['cantidad_huespedes'] = "Formato incorrecto del campo. Respetar formato de tipo entero > 0";
                 if (!$vFecha_inicio_disponibilidad)
-                    $this->data['Mensaje'] = array_merge($this->data['Mensaje'], ['fecha_inicio_disponibilidad' => "Formato incorrecto del campo. Respetar formato de tipo YYYY-mm-dd (posterior a la fecha actual)"]);
+                    $this->data['Mensaje']['fecha_inicio_disponibilidad'] = "Formato incorrecto del campo. Respetar formato de tipo YYYY-mm-dd (posterior a la fecha actual)";
                 if (!$vCantidad_dias)
-                    $this->data['Mensaje'] = array_merge($this->data['Mensaje'], ['cantidad_dias' => "Formato incorrecto del campo. Respetar formato de tipo entero > 0"]);
+                    $this->data['Mensaje']['cantidad_dias'] = "Formato incorrecto del campo. Respetar formato de tipo entero > 0";
                 if (!$vDisponible)
-                    $this->data['Mensaje'] = array_merge($this->data['Mensaje'], ['disponible' => "Formato incorrecto del campo. Respetar formato de tipo boolean (true/false)"]);
+                    $this->data['Mensaje']['disponible'] = "Formato incorrecto del campo. Respetar formato de tipo boolean (true/false)";
                 if (!$vValor_noche)
-                    $this->data['Mensaje'] = array_merge($this->data['Mensaje'], ['valor_noche' => "Formato incorrecto del campo. Respetar formato de tipo entero > 0"]);
+                    $this->data['Mensaje']['valor_noche'] = "Formato incorrecto del campo. Respetar formato de tipo entero > 0";
 
                 // (opcionales)
                 if ($cantidadHabitaciones && !$vCantidad_habitaciones)
-                    $this->data['Mensaje'] = array_merge($this->data['Mensaje'], ['cantidad_habitaciones' => "Formato incorrecto del campo. Respetar formato de tipo entero > 0"]);
+                    $this->data['Mensaje']['cantidad_habitaciones'] = "Formato incorrecto del campo. Respetar formato de tipo entero > 0";
                 if ($cantidadBanios && !$vCantidad_banios)
-                    $this->data['Mensaje'] = array_merge($this->data['Mensaje'], ['cantidad_banios' => "Formato incorrecto del campo. Respetar formato de tipo entero > 0"]);
+                    $this->data['Mensaje']['cantidad_banios'] = "Formato incorrecto del campo. Respetar formato de tipo entero > 0";
                 if ($cochera && !$vCochera)
-                    $this->data['Mensaje'] = array_merge($this->data['Mensaje'], ['cochera' => "Formato incorrecto del campo. Respetar formato de tipo boolean (true/false)"]);
-
-                // Falta imagen y tipo de imagen
+                    $this->data['Mensaje']['cochera'] = "Formato incorrecto del campo. Respetar formato de tipo boolean (true/false)";
             }
-
 
         } catch (Exception $e) {
             $this->data['Status'] = 'Throw Exception';
@@ -130,9 +128,8 @@ class Propiedad extends Endpoint
 
         $response->getBody()->write(json_encode($this->data));
         return $response->withStatus($this->data['Codigo']);
-
-
     }
+
     public function editar(Request $request, Response $response, $args)
     {
         try {
