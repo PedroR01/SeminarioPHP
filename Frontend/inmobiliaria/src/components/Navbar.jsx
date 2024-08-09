@@ -1,5 +1,5 @@
-// DUDA: Nose como quieren que hagamos el Header y el navbar, yo lo dejo asi para por lo menos poder probar las pags
 import React, { useState } from "react";
+import menuIcon from "../assets/icons/menu.png";
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
@@ -12,10 +12,10 @@ export default function Navbar() {
     <>
       {/* Botón de título para desplegar la barra lateral */}
       <button
-        className="fixed top-4 left-4 bg-gray-800 text-white p-2 rounded-lg z-20"
+        className="fixed bg-gray-800 text-white p-2 rounded-lg z-20 w-14"
         onClick={toggleSidebar}
       >
-        Menú
+        <img src={menuIcon} alt="Menú desplegable" />
       </button>
 
       {/* Barra lateral */}
@@ -45,7 +45,7 @@ export default function Navbar() {
                 className="nav-button w-full text-left"
                 onClick={toggleSidebar}
               >
-                <a href="/propiedades">Propiedades</a>
+                <a href="/">Propiedades</a>
               </button>
             </li>
             <li className="nav-item">
@@ -70,7 +70,3 @@ export default function Navbar() {
     </>
   );
 }
-
-const renderPage = (e) => {
-  console.log(e.target.innerHTML.toLowerCase());
-};

@@ -2,48 +2,41 @@ import React from "react";
 import editarIcon from "../assets/icons/editar.png";
 import eliminarIcon from "../assets/icons/eliminar.png";
 import confirmarIcon from "../assets/icons/confirmar.png";
+import agregarIcon from "../assets/icons/agregar.png";
+import cancelarIcon from "../assets/icons/cancelar.png";
+import detallesIcon from "../assets/icons/detalles.png";
 
-export default function Boton({ tipo }) {
-  switch (tipo) {
-    case "editar":
-      return (
-        <button
-          className="bg-gray-200 p-2 inline rounded-lg shadow-nav-shadow"
-          onClick={editar}
-        >
-          <img className="max-w-6" src={editarIcon} alt="a" />
-        </button>
-      );
+// Es lo mismo export default function que esta forma de aca? DUDA
+const Boton = ({ tipo, onClick, submit }) => {
+  const iconMap = {
+    editar: editarIcon,
+    eliminar: eliminarIcon,
+    confirmar: confirmarIcon,
+    agregar: agregarIcon,
+    cancelar: cancelarIcon,
+    detalles: detallesIcon,
+  };
 
-    case "eliminar":
-      return (
-        <button
-          className="bg-gray-200 p-2 inline rounded-full shadow-nav-shadow"
-          onClick={eliminar}
-        >
-          <img className="max-w-6" src={eliminarIcon} alt="b" />
-        </button>
-      );
-    case "confirmar":
-      return (
-        <button className="" onClick={confirmar}>
-          <img src={confirmarIcon} alt="c" />
-        </button>
-      );
-  }
-
-  return alert("Tipo de boton no especificado.");
-}
-
-const editar = (e) => {
-  console.log(e.target);
-  console.log("editado");
+  if (submit)
+    return (
+      <button
+        className="inline btn shadow-nav-shadow"
+        onClick={onClick}
+        type="submit"
+      >
+        <img className="max-w-6" src={iconMap[tipo]} alt={tipo} />
+      </button>
+    );
+  else
+    return (
+      <button
+        className="inline btn shadow-nav-shadow"
+        onClick={onClick}
+        type="button"
+      >
+        <img className="max-w-6" src={iconMap[tipo]} alt={tipo} />
+      </button>
+    );
 };
 
-const eliminar = () => {
-  console.log("eliminado");
-};
-
-const confirmar = () => {
-  console.log("confirmado");
-};
+export default Boton;
