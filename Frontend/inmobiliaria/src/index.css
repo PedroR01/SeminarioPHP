@@ -3,6 +3,7 @@
 @tailwind utilities;
 
 body {
+  overflow-x: hidden;
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen",
     "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue",
@@ -27,5 +28,47 @@ code {
   }
   .nav-button:hover {
     background-color: rgb(55 65 81);
+  }
+  .modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5); /* Fondo transparente difuminado */
+    backdrop-filter: blur(5px); /* Difuminado del fondo */
+    z-index: 50; /* Asegura que el overlay esté en una capa superior */
+  }
+  .modal-content {
+    background-color: rgb(55 65 81); /* Color de fondo del modal */
+    padding: 2rem; /* Espaciado interno */
+    border-radius: 0.5rem; /* Bordes redondeados */
+    position: relative;
+    z-index: 100; /* Asegura que el contenido modal esté en una capa superior al overlay */
+    max-width: 500px; /* Ancho máximo del modal */
+    width: 100%;
+    margin: auto; /* Centra el modal horizontalmente */
+  }
+  .modal {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 50;
+  }
+  .btn {
+    background-color: rgb(229, 231, 235);
+    padding: 0.5rem;
+    border-radius: 0.5rem;
+  }
+
+  /* Quitar flechas incremente-decremento en los input number*/
+  input[type="number"]::-webkit-inner-spin-button,
+  input[type="number"]::-webkit-outer-spin-button {
+    appearance: none;
   }
 }
