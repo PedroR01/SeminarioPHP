@@ -1,3 +1,14 @@
+# Librerias usadas
+
+- Lodash (optimización para hacer copías profundas. En mi caso lo use para algunos arrays.)
+- TailwindCss (estilo para css personalizable)
+
+### Nota
+
+- Hubo un pequeño cambio en un condicional para las fechas en el endpoint de reservas. Habia una variable mal declarada que generaba que siempre se ingrese a un condicional a la hora de editar una reserva, por lo que siempre daba errores inexistentes en referencia a los campos.
+- Cambie el orden en el que se corroboran los datos opcionales y cuando se cambia el "false" de cochera por un 0.
+- En PhpMyAdmin se cambio el tipo de dato para la imagen base64 para que no hubiera problemas con el espacio que suelen ocupar las imagenes en ese formato a la hora de guardarse en la BD.
+
 # Getting Started with Create React App
 
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
